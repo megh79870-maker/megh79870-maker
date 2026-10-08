@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SeismoForge 3D – Earthquake Resistant Design Configurator</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:#030712;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;}
+body.loaded{overflow-x:hidden;overflow-y:auto;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:rgba(0,170,255,.35);border-radius:2px;}
+
+/* ===================== INTRO SCREEN ===================== */
+#intro-screen{position:fixed;inset:0;z-index:9999;background:#020810;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#intro-canvas{position:absolute;inset:0;z-index:0;}
+#intro-scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);pointer-events:none;z-index:1;}
+.intro-corner{position:absolute;z-index:3;padding:5px 15px;border-radius:20px;font-size:.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+#intro-tl{top:24px;left:28px;color:rgba(0,170,255,.75);border:1px solid rgba(0,170,255,.25);background:rgba(0,170,255,.07);}
+#intro-tr{top:24px;right:28px;color:rgba(0,255,136,.75);border:1px solid rgba(0,255,136,.25);background:rgba(0,255,136,.07);}
+#intro-bl{bottom:24px;left:28px;color:rgba(204,68,255,.65);border:1px solid rgba(204,68,255,.22);background:rgba(204,68,255,.05);font-size:.6rem;}
+#intro-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center;}
+.ih{opacity:0;transform:translateY(24px);transition:opacity .9s ease,transform .9s cubic-bezier(.34,1.56,.64,1);}
+.iv{opacity:1!important;transform:translateY(0)!important;}
+/* Logo */
+#intro-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+.l-seismo{font-size:clamp(3.2rem,9vw,7.5rem);font-weight:900;letter-spacing:-5px;color:#fff;text-shadow:0 0 40px rgba(255,255,255,.25);animation:glitch 7s ease-in-out 4s infinite;}
+.l-forge{font-size:clamp(3.2rem,9vw,7.5rem);font-weight:900;letter-spacing:-5px;background:linear-gradient(135deg,#00aaff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.l-3d{font-size:clamp(1.8rem,5vw,4rem);font-weight:900;background:linear-gradient(135deg,#ff4444,#ff8800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 18px rgba(255,68,68,.7));margin-left:4px;letter-spacing:-2px;}
+@keyframes glitch{0%,88%,100%{text-shadow:0 0 40px rgba(255,255,255,.25);transform:none;}89%{text-shadow:-5px 0 #ff4444,5px 0 #00aaff;transform:translateX(-3px);}90%{text-shadow:5px 0 #ff4444,-5px 0 #00aaff;transform:translateX(4px);}91%{text-shadow:-3px 0 #00aaff;transform:translateX(-1px);}92%{text-shadow:3px 0 #ff8800;transform:translateX(0);}93%{text-shadow:0 0 40px rgba(255,255,255,.25);}}
+/* Tagline */
+#intro-tagline{display:flex;gap:14px;align-items:center;font-size:.72rem;letter-spacing:2.5px;text-transform:uppercase;color:rgba(148,163,184,.5);}
+#intro-tagline b{color:rgba(0,170,255,.8);font-weight:700;}
+.tsep{color:rgba(255,255,255,.15);}
+/* Loader */
+#intro-loader{width:420px;max-width:88vw;}
+#intro-bar-wrap{width:100%;height:3px;background:rgba(255,255,255,.07);border-radius:3px;overflow:visible;margin-bottom:14px;position:relative;}
+#intro-bar{height:100%;width:0%;background:linear-gradient(90deg,#0044bb,#00aaff,#00ff88);border-radius:3px;transition:width .25s ease;position:relative;}
+#intro-bar::after{content:'';position:absolute;right:-2px;top:-5px;width:4px;height:13px;background:#00aaff;border-radius:2px;box-shadow:0 0 10px #00aaff,0 0 20px rgba(0,170,255,.5);filter:blur(1px);}
+#intro-pct{position:absolute;top:-22px;right:0;font-size:.68rem;color:rgba(0,170,255,.65);font-weight:800;letter-spacing:1px;}
+#intro-msg{font-size:.72rem;color:rgba(0,170,255,.72);letter-spacing:.8px;min-height:18px;text-align:left;transition:opacity .3s;}
+#intro-msg.fade{opacity:0;}
+/* Seisma preview */
+#intro-seisma{display:flex;align-items:center;gap:12px;padding:10px 18px;background:rgba(204,68,255,.08);border:1px solid rgba(204,68,255,.2);border-radius:14px;}
+.seisma-orb{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#cc44ff,#00aaff);display:flex;align-items:center;justify-content:center;font-size:18px;animation:orb-pulse 2.5s ease-in-out infinite;}
+@keyframes orb-pulse{0%,100%{box-shadow:0 0 0 0 rgba(204,68,255,.4);}50%{box-shadow:0 0 0 10px rgba(204,68,255,0);}}
+#intro-seisma-text{text-align:left;font-size:.72rem;color:rgba(148,163,184,.8);}
+#intro-seisma-text b{color:#cc44ff;display:block;font-size:.8rem;margin-bottom:2px;}
+/* Skip */
+#intro-skip{position:absolute;bottom:28px;right:28px;z-index:3;padding:10px 24px;border:1px solid rgba(0,170,255,.4);background:rgba(0,170,255,.1);color:#00aaff;border-radius:30px;font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;}
+#intro-skip:hover{background:rgba(0,170,255,.25);box-shadow:0 0 20px rgba(0,170,255,.35);}
+/* Exit animation */
+#intro-screen.exit{animation:introExit .7s ease forwards;}
+@keyframes introExit{0%{opacity:1;transform:scale(1);}30%{opacity:1;background:rgba(0,170,255,.5);}50%{opacity:1;background:#fff;}100%{opacity:0;transform:scale(1.04);}}
+
+/* ===================== PARTICLES BG ===================== */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ===================== NAV ===================== */
+#navbar{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:12px 28px;background:rgba(3,7,18,.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,170,255,.12);transform:translateY(-100%);transition:transform .4s;}
+#navbar.vis{transform:translateY(0);}
+.nlogo{display:flex;align-items:center;gap:10px;}
+.nico{width:36px;height:36px;border-radius:9px;background:conic-gradient(from 0deg,#ff4444,#ffcc00,#00ff88,#00aaff,#cc44ff,#ff4444);display:flex;align-items:center;justify-content:center;font-size:18px;animation:hue 6s linear infinite;}
+@keyframes hue{to{filter:hue-rotate(360deg);}}
+.nbadges{display:flex;gap:6px;}
+.nb{padding:3px 10px;border-radius:20px;font-size:.62rem;font-weight:600;letter-spacing:.8px;text-transform:uppercase;border:1px solid;}
+.nb-b{background:rgba(0,170,255,.1);border-color:rgba(0,170,255,.4);color:#00aaff;}
+.nb-g{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.4);color:#00ff88;}
+.nb-r{background:rgba(255,68,68,.1);border-color:rgba(255,68,68,.4);color:#ff4444;}
+.nb-p{background:rgba(204,68,255,.1);border-color:rgba(204,68,255,.4);color:#cc44ff;}
+
+/* ===================== HERO ===================== */
+#hero{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,170,255,.12) 0%,transparent 70%);}
+.hbadge{display:inline-flex;align-items:center;gap:8px;padding:6px 18px;border-radius:30px;border:1px solid rgba(0,170,255,.35);background:rgba(0,170,255,.08);font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:#00aaff;margin-bottom:28px;animation:fadeUp .8s ease both;}
+.dot{width:7px;height:7px;border-radius:50%;background:#00ff88;box-shadow:0 0 8px #00ff88;animation:pdot 1.5s ease-in-out infinite;}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+.htitle{font-size:clamp(2.5rem,6vw,5rem);font-weight:900;line-height:1.05;letter-spacing:-2px;margin-bottom:18px;animation:fadeUp .9s .1s ease both;}
+.t1{background:linear-gradient(135deg,#fff,rgba(255,255,255,.7));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.t2{background:linear-gradient(135deg,#00aaff,#00ff88,#cc44ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hsub{font-size:1rem;color:rgba(148,163,184,.8);max-width:620px;line-height:1.8;margin-bottom:40px;animation:fadeUp .9s .2s ease both;}
+.hactions{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;animation:fadeUp .9s .3s ease both;}
+.btn{padding:13px 30px;border-radius:10px;font-size:.85rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:8px;}
+.btn-p{background:linear-gradient(135deg,#0066cc,#00aaff);color:#fff;box-shadow:0 4px 24px rgba(0,170,255,.4);}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(0,170,255,.6);}
+.btn-o{background:transparent;color:#e2e8f0;border:1px solid rgba(255,255,255,.15);}
+.btn-o:hover{border-color:#00aaff;color:#00aaff;}
+.hstats{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;margin-top:56px;animation:fadeUp .9s .5s ease both;}
+.stat{text-align:center;}
+.sv{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#00aaff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.sl{font-size:.68rem;color:rgba(148,163,184,.6);letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
+.scue{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;animation:bounce 2s ease-in-out infinite;}
+.scue span{font-size:.65rem;color:rgba(148,163,184,.5);letter-spacing:2px;text-transform:uppercase;}
+.sarr{width:20px;height:20px;border-right:2px solid #00aaff;border-bottom:2px solid #00aaff;transform:rotate(45deg);}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(8px);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+
+/* ===================== 3D VIEWER ===================== */
+#viewer-section{position:relative;z-index:2;background:rgba(5,10,25,.95);border-top:1px solid rgba(0,170,255,.15);border-bottom:1px solid rgba(0,170,255,.15);}
+.viewer-header{display:flex;align-items:center;justify-content:space-between;padding:16px 26px;background:rgba(0,0,0,.4);border-bottom:1px solid rgba(0,170,255,.1);flex-wrap:wrap;gap:10px;}
+.vh-title{display:flex;align-items:center;gap:12px;}
+.vh-icon{width:40px;height:40px;border-radius:10px;background:rgba(0,170,255,.18);display:flex;align-items:center;justify-content:center;font-size:20px;}
+.vh-title h2{font-size:1.05rem;font-weight:700;}
+.vh-title p{font-size:.68rem;color:rgba(148,163,184,.55);letter-spacing:.8px;text-transform:uppercase;}
+.vh-controls{display:flex;gap:7px;flex-wrap:wrap;}
+.vbtn{padding:7px 14px;border-radius:8px;font-size:.68rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:1px solid;transition:all .2s;}
+.vb-b{background:rgba(0,170,255,.12);border-color:rgba(0,170,255,.35);color:#00aaff;}
+.vb-b:hover{background:rgba(0,170,255,.25);}
+.vb-r{background:rgba(255,68,68,.12);border-color:rgba(255,68,68,.35);color:#ff4444;}
+.vb-r:hover{background:rgba(255,68,68,.25);}
+.vb-g{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.35);color:#00ff88;}
+.vb-g:hover{background:rgba(0,255,136,.2);}
+.vb-y{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.35);color:#ffcc00;}
+.vb-y:hover{background:rgba(255,204,0,.2);}
+.vb-p{background:rgba(204,68,255,.1);border-color:rgba(204,68,255,.35);color:#cc44ff;}
+.vb-p:hover{background:rgba(204,68,255,.2);}
+.viewer-body{display:grid;grid-template-columns:1fr 290px;height:570px;}
+#three-container{position:relative;overflow:hidden;cursor:grab;}
+#three-container:active{cursor:grabbing;}
+#three-container canvas{display:block;width:100%!important;height:100%!important;}
+.view-labels{position:absolute;top:14px;left:14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.vlbl{background:rgba(0,0,0,.7);border:1px solid rgba(0,170,255,.25);border-radius:8px;padding:5px 12px;font-size:.67rem;letter-spacing:1px;text-transform:uppercase;color:#00aaff;}
+.legend{position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:10px 14px;}
+.legend-title{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:rgba(148,163,184,.5);margin-bottom:6px;}
+.lg-item{display:flex;align-items:center;gap:8px;font-size:.69rem;color:rgba(148,163,184,.78);margin-bottom:3px;}
+.lg-dot{width:10px;height:10px;border-radius:50%;}
+.viewer-right{background:rgba(8,14,30,.98);border-left:1px solid rgba(0,170,255,.12);display:flex;flex-direction:column;overflow-y:auto;}
+.vr-sect{padding:14px;border-bottom:1px solid rgba(255,255,255,.05);}
+.vr-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(148,163,184,.65);margin-bottom:10px;}
+.floor-btn{width:100%;padding:7px 12px;margin-bottom:4px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:rgba(148,163,184,.78);font-size:.7rem;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.floor-btn:hover{background:rgba(0,170,255,.12);border-color:rgba(0,170,255,.3);color:#00aaff;}
+.floor-btn.active{background:rgba(0,170,255,.18);border-color:rgba(0,170,255,.5);color:#00aaff;}
+.fd{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.fi-panel{background:rgba(0,170,255,.06);border:1px solid rgba(0,170,255,.2);border-radius:10px;padding:12px;margin-top:10px;font-size:.73rem;line-height:1.7;color:rgba(148,163,184,.9);}
+.fi-t{color:#00aaff;font-weight:700;margin-bottom:5px;}
+.live-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.live-card{border-radius:9px;padding:9px;text-align:center;border:1px solid;}
+.lc-lbl{font-size:.58rem;color:rgba(148,163,184,.5);text-transform:uppercase;letter-spacing:.8px;}
+.lc-val{font-size:1.15rem;font-weight:800;line-height:1.2;margin-top:2px;}
+
+/* ===================== VOICE ASSISTANT ===================== */
+#va-toggle{position:fixed;bottom:28px;right:28px;z-index:500;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#cc44ff,#00aaff);border:none;cursor:pointer;box-shadow:0 6px 30px rgba(204,68,255,.5);display:flex;align-items:center;justify-content:center;font-size:26px;transition:all .2s;animation:va-glow 2s ease-in-out infinite;}
+#va-toggle:hover{transform:scale(1.12);}
+@keyframes va-glow{0%,100%{box-shadow:0 6px 30px rgba(204,68,255,.5);}50%{box-shadow:0 6px 50px rgba(0,170,255,.8),0 0 80px rgba(204,68,255,.3);}}
+#va-panel{position:fixed;bottom:110px;right:28px;z-index:499;width:355px;background:rgba(8,14,30,.97);border:1px solid rgba(204,68,255,.3);border-radius:20px;backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.6);display:none;flex-direction:column;max-height:560px;}
+#va-panel.open{display:flex;}
+.va-head{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:13px;}
+.va-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#cc44ff,#00aaff);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;animation:av-pulse 3s ease-in-out infinite;}
+@keyframes av-pulse{0%,100%{box-shadow:0 0 0 0 rgba(204,68,255,.4);}50%{box-shadow:0 0 0 12px rgba(204,68,255,0);}}
+.va-talking .va-avatar{animation:av-talk .3s ease-in-out infinite alternate;}
+@keyframes av-talk{from{transform:scale(1);}to{transform:scale(1.08);}}
+.va-name{font-weight:700;font-size:.92rem;}
+.va-status{font-size:.68rem;color:rgba(148,163,184,.55);margin-top:2px;}
+.va-sdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#00ff88;box-shadow:0 0 6px #00ff88;margin-right:5px;animation:pdot 1.5s ease-in-out infinite;}
+.va-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:300px;}
+.va-msgs::-webkit-scrollbar{width:3px;}
+.va-msgs::-webkit-scrollbar-thumb{background:rgba(204,68,255,.3);}
+.msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:.76rem;line-height:1.6;animation:msgIn .3s ease;}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.msg-ai{background:rgba(204,68,255,.12);border:1px solid rgba(204,68,255,.2);border-radius:12px 12px 12px 2px;color:rgba(226,232,240,.95);align-self:flex-start;}
+.msg-user{background:rgba(0,170,255,.12);border:1px solid rgba(0,170,255,.2);border-radius:12px 12px 2px 12px;align-self:flex-end;}
+.va-ctrls{padding:12px 14px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;}
+.va-inp{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 13px;color:#e2e8f0;font-size:.76rem;outline:none;}
+.va-inp::placeholder{color:rgba(148,163,184,.38);}
+.va-mic{width:38px;height:38px;border-radius:50%;background:rgba(204,68,255,.15);border:1px solid rgba(204,68,255,.4);color:#cc44ff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.va-mic.listening{background:rgba(255,68,68,.2);border-color:#ff4444;color:#ff4444;animation:mic-pulse .8s ease-in-out infinite;}
+@keyframes mic-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.va-send{width:38px;height:38px;border-radius:50%;background:rgba(0,170,255,.15);border:1px solid rgba(0,170,255,.4);color:#00aaff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.qcmds{padding:8px 14px;display:flex;gap:5px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.05);}
+.qcmd{padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:.63rem;color:rgba(148,163,184,.65);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.qcmd:hover{background:rgba(204,68,255,.12);border-color:rgba(204,68,255,.35);color:#cc44ff;}
+.wavebars{display:flex;align-items:center;gap:3px;height:16px;margin-top:3px;}
+.wb{width:3px;border-radius:2px;background:#cc44ff;animation:wbani 1s ease-in-out infinite;}
+.wb:nth-child(1){animation-delay:0s;}.wb:nth-child(2){animation-delay:.1s;}.wb:nth-child(3){animation-delay:.2s;}.wb:nth-child(4){animation-delay:.3s;}.wb:nth-child(5){animation-delay:.4s;}
+@keyframes wbani{0%,100%{height:5px;opacity:.4;}50%{height:16px;opacity:1;}}
+
+/* ===================== GPS BUTTON ===================== */
+#gps-btn{width:100%;padding:9px;margin-bottom:12px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);border-radius:10px;color:#00ff88;font-size:.75rem;font-weight:700;letter-spacing:.8px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+#gps-btn:hover{background:rgba(0,255,136,.16);box-shadow:0 0 18px rgba(0,255,136,.2);}
+#gps-btn:disabled{opacity:.6;cursor:not-allowed;}
+.gps-pulse{width:9px;height:9px;border-radius:50%;background:#00ff88;box-shadow:0 0 6px #00ff88;animation:pdot 1s ease-in-out infinite;}
+
+/* ===================== APP ===================== */
+#app{position:relative;z-index:2;}
+.cfg{max-width:1560px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:22px;padding:28px 24px 40px;}
+.card{background:rgba(13,18,35,.95);border:1px solid rgba(0,170,255,.18);border-radius:18px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.4);transition:border-color .3s,box-shadow .3s;}
+.card:hover{border-color:rgba(0,170,255,.32);box-shadow:0 8px 48px rgba(0,170,255,.1);}
+.ch{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);}
+.ci{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.ct{font-size:.78rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.cb{padding:20px;}
+.fg{margin-bottom:15px;}
+.fl{display:flex;justify-content:space-between;align-items:center;font-size:.7rem;font-weight:600;color:rgba(148,163,184,.72);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px;}
+.fl span{color:#00ff88;font-weight:700;font-size:.76rem;}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:rgba(255,255,255,.1);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#00aaff;box-shadow:0 0 10px rgba(0,170,255,.5);cursor:pointer;transition:transform .15s;}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35);}
+select{width:100%;padding:9px 14px;background:rgba(0,0,0,.45);border:1px solid rgba(0,170,255,.22);border-radius:9px;color:#e2e8f0;font-size:.8rem;outline:none;cursor:pointer;-webkit-appearance:none;}
+select:focus{border-color:#00aaff;}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;}
+.chip{padding:5px 12px;border-radius:20px;font-size:.7rem;font-weight:600;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:rgba(148,163,184,.72);cursor:pointer;transition:all .2s;white-space:nowrap;}
+.chip:hover,.chip.active{background:rgba(0,170,255,.15);border-color:rgba(0,170,255,.45);color:#00aaff;}
+#analyze-btn{width:100%;padding:14px;margin-top:4px;background:linear-gradient(135deg,#0044bb,#00aaff);border:none;border-radius:12px;color:#fff;font-size:.9rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 24px rgba(0,170,255,.4);transition:all .2s;}
+#analyze-btn:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(0,170,255,.65);}
+#analyze-btn:disabled{opacity:.7;cursor:not-allowed;transform:none;}
+#sim-btn{padding:9px 18px;background:linear-gradient(135deg,#aa0000,#ff4444,#ff8800);border:none;border-radius:9px;color:#fff;font-size:.74rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;animation:sbp 2s ease-in-out infinite;}
+#sim-btn:hover{animation:none;transform:translateY(-1px);}
+@keyframes sbp{0%,100%{box-shadow:0 4px 18px rgba(255,68,68,.4);}50%{box-shadow:0 4px 36px rgba(255,136,0,.7);}}
+.bwrap{position:relative;border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at 50% 110%,rgba(0,170,255,.1) 0%,transparent 65%);height:370px;}
+#building-canvas{width:100%;height:100%;}
+.qpanel{position:absolute;top:14px;right:14px;background:rgba(3,7,18,.85);border:1px solid rgba(255,68,68,.3);backdrop-filter:blur(12px);border-radius:12px;padding:11px 15px;min-width:136px;}
+.qpl{font-size:.6rem;letter-spacing:1.5px;text-transform:uppercase;color:rgba(148,163,184,.5);margin-bottom:2px;}
+.qpv{font-weight:800;font-size:1.3rem;color:#ff4444;line-height:1;margin-bottom:7px;}
+.qpr{display:flex;flex-direction:column;margin-bottom:5px;}
+.rchwrap{position:absolute;bottom:14px;left:14px;background:rgba(3,7,18,.85);border:1px solid rgba(255,204,0,.22);backdrop-filter:blur(12px);border-radius:12px;padding:9px 13px;}
+#wf-canvas{width:100%;height:78px;border-radius:10px;background:rgba(0,0,0,.35);display:block;}
+#spec-canvas{width:100%;height:140px;border-radius:10px;background:rgba(0,0,0,.35);display:block;}
+#soil-canvas{width:100%;height:175px;border-radius:10px;display:block;margin-bottom:12px;}
+.zone-wrap{border-radius:12px;overflow:hidden;background:rgba(0,0,0,.5);margin-bottom:14px;height:175px;}
+#zone-canvas{width:100%;height:100%;}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.rc{background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.05);border-radius:13px;padding:12px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;}
+.rc:hover{transform:translateY(-2px);border-color:rgba(0,170,255,.25);}
+.rc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--ac,#00aaff),transparent);}
+.rcl{font-size:.63rem;text-transform:uppercase;letter-spacing:1px;color:rgba(148,163,184,.6);margin-bottom:4px;}
+.rcv{font-size:1.35rem;font-weight:800;background:linear-gradient(135deg,#00aaff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1;}
+.rcu{font-size:.66rem;color:rgba(148,163,184,.45);margin-top:2px;}
+.risk-meter{width:100%;height:10px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden;margin:8px 0;}
+.risk-fill{height:100%;border-radius:5px;transition:width 1.4s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden;}
+.risk-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s ease-in-out infinite;}
+@keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.tabs{display:flex;gap:4px;margin-bottom:14px;}
+.tab{flex:1;padding:8px 4px;border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.3);border-radius:8px;font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:rgba(148,163,184,.58);cursor:pointer;transition:all .2s;text-align:center;}
+.tab.active{background:rgba(0,170,255,.18);border-color:rgba(0,170,255,.45);color:#00aaff;box-shadow:0 0 14px rgba(0,170,255,.18);}
+.tp{display:none;}.tp.active{display:block;}
+.comp-list{list-style:none;}
+.comp-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.74rem;line-height:1.55;}
+.comp-item:last-child{border-bottom:none;}
+.ck{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px;}
+.ck-ok{background:rgba(0,255,136,.18);color:#00ff88;border:1px solid rgba(0,255,136,.35);}
+.ck-w{background:rgba(255,204,0,.18);color:#ffcc00;border:1px solid rgba(255,204,0,.35);}
+.ck-x{background:rgba(255,68,68,.18);color:#ff4444;border:1px solid rgba(255,68,68,.35);}
+#rebar-canvas{width:100%;height:155px;border-radius:10px;background:rgba(0,0,0,.35);display:block;margin-bottom:12px;}
+.info-box{background:rgba(0,170,255,.06);border:1px solid rgba(0,170,255,.2);border-left:3px solid #00aaff;border-radius:9px;padding:11px 14px;font-size:.74rem;color:rgba(148,163,184,.88);line-height:1.65;margin-top:10px;}
+.warn-box{background:rgba(255,204,0,.06);border-left-color:#ffcc00;border-color:rgba(255,204,0,.2);}
+.sdc-badge{display:inline-block;padding:6px 18px;border-radius:8px;font-size:1.4rem;font-weight:900;letter-spacing:2px;margin:6px 0;}
+#storey-canvas{width:100%;height:155px;border-radius:10px;display:block;}
+.stbl{width:100%;border-collapse:collapse;font-size:.71rem;color:rgba(148,163,184,.78);}
+.stbl th{text-align:right;padding:7px 9px;color:rgba(148,163,184,.42);font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-size:.62rem;border-bottom:1px solid rgba(255,255,255,.08);}
+.stbl th:first-child{text-align:left;}
+.stbl td{text-align:right;padding:6px 9px;border-bottom:1px solid rgba(255,255,255,.03);}
+.stbl td:first-child{text-align:left;}
+.ldots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:#00aaff;margin:0 2px;animation:lb 1.2s ease-in-out infinite;}
+.ldots span:nth-child(2){animation-delay:.2s;}.ldots span:nth-child(3){animation-delay:.4s;}
+@keyframes lb{0%,80%,100%{transform:scale(.6);opacity:.4;}40%{transform:scale(1);opacity:1;}}
+.full-w{grid-column:1/-1;}
+footer{position:relative;z-index:2;padding:16px 28px;border-top:1px solid rgba(0,170,255,.1);background:rgba(3,7,18,.95);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:.68rem;color:rgba(148,163,184,.38);}
+.frefs{display:flex;gap:14px;flex-wrap:wrap;}
+.frefs span{color:rgba(0,170,255,.62);font-weight:600;}
+@media(max-width:960px){.cfg{grid-template-columns:1fr;}.viewer-body{grid-template-columns:1fr;height:auto;}.viewer-right{height:280px;}}
+</style>
+</head>
+<body>
+
+<!-- ==================== INTRO SCREEN ==================== -->
+<div id="intro-screen">
+  <canvas id="intro-canvas"></canvas>
+  <div id="intro-scanlines"></div>
+  <div class="intro-corner" id="intro-tl">🏆 PS7 · Hackathon 2</div>
+  <div class="intro-corner" id="intro-tr">IS 1893 : 2016</div>
+  <div class="intro-corner" id="intro-bl" style="bottom:24px;left:28px;font-size:.58rem;">Made in India 🇮🇳 · Structural Engineering AI</div>
+  <div id="intro-content">
+    <div id="intro-logo" class="ih">
+      <span class="l-seismo">SEISMO</span><span class="l-forge">FORGE</span><span class="l-3d">3D</span>
+    </div>
+    <div id="intro-tagline" class="ih">
+      <b>IS 1893:2016</b><span class="tsep">·</span><b>AI Powered</b><span class="tsep">·</span><b>3D BIM</b><span class="tsep">·</span><b>Voice Assistant</b>
+    </div>
+    <div id="intro-loader" class="ih">
+      <div id="intro-bar-wrap">
+        <div id="intro-bar"><div id="intro-pct">0%</div></div>
+      </div>
+      <div id="intro-msg">Booting SeismoForge...</div>
+    </div>
+    <div id="intro-seisma" class="ih">
+      <div class="seisma-orb">👩‍💼</div>
+      <div id="intro-seisma-text"><b>Seisma AI</b>Your personal earthquake engineering assistant — coming online</div>
+    </div>
+    <div style="font-size:.6rem;color:rgba(148,163,184,.28);letter-spacing:2px;text-transform:uppercase;" class="ih" id="intro-footer">India · 22+ Cities · 4 Seismic Zones · 30 Floors · Underground Parking</div>
+  </div>
+  <button id="intro-skip" class="ih" onclick="launchSite()">ENTER →</button>
+</div>
+
+<!-- ==================== MAIN SITE ==================== -->
+<canvas id="bg-canvas"></canvas>
+<nav id="navbar">
+  <div class="nlogo"><div class="nico">⚡</div><div><div style="font-weight:800;font-size:1.1rem;">SeismoForge 3D</div></div></div>
+  <div class="nbadges">
+    <div class="nb nb-b">IS 1893:2016</div><div class="nb nb-g">IS 13920</div>
+    <div class="nb nb-r">IS 456</div><div class="nb nb-p">3D AI</div>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="hbadge"><div class="dot"></div>AI-Powered · 3D BIM Simulation · IS 1893:2016</div>
+  <div class="htitle"><div class="t1">Earthquake Resistant</div><div class="t2">Design Configurator 3D</div></div>
+  <p class="hsub">Full 3D building with underground parking B1/B2, staircase, elevator, seismic force visualization, voice AI assistant Seisma, and GPS auto-detection — all IS 1893:2016 compliant.</p>
+  <div class="hactions">
+    <button class="btn btn-p" onclick="document.getElementById('viewer-section').scrollIntoView({behavior:'smooth'})">🏢 Explore 3D Model</button>
+    <button class="btn btn-o" onclick="document.getElementById('app').scrollIntoView({behavior:'smooth'})">⚡ Run IS 1893 Analysis</button>
+  </div>
+  <div class="hstats">
+    <div class="stat"><div class="sv">3D</div><div class="sl">BIM Model</div></div>
+    <div class="stat"><div class="sv">360°</div><div class="sl">View</div></div>
+    <div class="stat"><div class="sv">GPS</div><div class="sl">Auto-detect</div></div>
+    <div class="stat"><div class="sv">Seisma</div><div class="sl">Voice AI</div></div>
+    <div class="stat"><div class="sv">22+</div><div class="sl">Indian Cities</div></div>
+  </div>
+  <div class="scue"><span>Scroll to explore</span><div class="sarr"></div></div>
+</section>
+
+<!-- 3D VIEWER -->
+<section id="viewer-section">
+  <div class="viewer-header">
+    <div class="vh-title"><div class="vh-icon">🏢</div><div><h2>3D Structural Model — Interactive BIM Viewer</h2><p>Drag to rotate · Scroll to zoom · Click floor to inspect · 360°</p></div></div>
+    <div class="vh-controls">
+      <button class="vbtn vb-b" onclick="view3D&&view3D.zoomToFloor(-2)">🅿 B2</button>
+      <button class="vbtn vb-b" onclick="view3D&&view3D.zoomToFloor(-1)">🅿 B1</button>
+      <button class="vbtn vb-g" onclick="view3D&&view3D.resetView()">🔄 Reset</button>
+      <button class="vbtn vb-y" onclick="view3D&&view3D.toggleStressMode()">🌡 Stress</button>
+      <button class="vbtn vb-r" onclick="trigger3DEQ()">💥 Earthquake</button>
+      <button class="vbtn vb-p" onclick="view3D&&view3D.toggleSection()">✂ Section</button>
+    </div>
+  </div>
+  <div class="viewer-body">
+    <div id="three-container">
+      <div class="view-labels">
+        <div class="vlbl" id="view-mode-lbl">🔵 Standard View</div>
+        <div class="vlbl" id="view-floor-lbl">Elevator: Ground</div>
+      </div>
+      <div class="legend">
+        <div class="legend-title">Building Levels</div>
+        <div class="lg-item"><div class="lg-dot" style="background:#4488cc;"></div>Above Ground Floors</div>
+        <div class="lg-item"><div class="lg-dot" style="background:#ff8800;"></div>B1/B2 Underground Parking</div>
+        <div class="lg-item"><div class="lg-dot" style="background:#8855aa;"></div>Foundation Piles</div>
+        <div class="lg-item"><div class="lg-dot" style="background:#00ff88;"></div>Elevator Shaft</div>
+        <div class="lg-item"><div class="lg-dot" style="background:#ffcc00;"></div>Staircase</div>
+      </div>
+    </div>
+    <div class="viewer-right">
+      <div class="vr-sect">
+        <div class="vr-title">🏢 Floor Explorer</div>
+        <div id="floor-btn-list"><div style="color:rgba(148,163,184,.38);font-size:.7rem;text-align:center;padding:16px 0;">Configure & analyze to populate floors</div></div>
+        <div class="fi-panel" id="fi-panel" style="display:none;"><div class="fi-t" id="fi-title">Floor</div><div id="fi-content"></div></div>
+      </div>
+      <div class="vr-sect">
+        <div class="vr-title">🌡 Live Seismic Data</div>
+        <div class="live-grid">
+          <div class="live-card" style="background:rgba(255,68,68,.08);border-color:rgba(255,68,68,.2);"><div class="lc-lbl">Base Shear</div><div class="lc-val" id="live-vb" style="color:#ff4444;">— kN</div></div>
+          <div class="live-card" style="background:rgba(0,170,255,.08);border-color:rgba(0,170,255,.2);"><div class="lc-lbl">Period T</div><div class="lc-val" id="live-t" style="color:#00aaff;">— s</div></div>
+          <div class="live-card" style="background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.2);"><div class="lc-lbl">Ah</div><div class="lc-val" id="live-ah" style="color:#00ff88;">—</div></div>
+          <div class="live-card" style="background:rgba(255,204,0,.08);border-color:rgba(255,204,0,.2);"><div class="lc-lbl">Zone</div><div class="lc-val" id="live-zone" style="color:#ffcc00;">—</div></div>
+        </div>
+      </div>
+      <div class="vr-sect">
+        <div class="vr-title">🏗 Model Info</div>
+        <div style="font-size:.7rem;color:rgba(148,163,184,.68);line-height:1.85;">
+          <div>🏢 Above Ground: <span id="mi-floors" style="color:#00aaff;">5 Floors</span></div>
+          <div>🅿 Underground: <span id="mi-base" style="color:#ff8800;">2 Basements</span></div>
+          <div>🚗 Parking: <span style="color:#ff8800;">~16 spots/level</span></div>
+          <div>🛗 Elevator: <span style="color:#00ff88;">Full height</span></div>
+          <div>🪜 Staircase: <span style="color:#ffcc00;">Core stair</span></div>
+          <div>🏗 Foundation: <span style="color:#cc44ff;">Pile + Raft</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VOICE ASSISTANT -->
+<button id="va-toggle" onclick="toggleVA()" title="Talk to Seisma AI">🎙</button>
+<div id="va-panel">
+  <div class="va-head" id="va-head">
+    <div class="va-avatar">👩‍💼</div>
+    <div>
+      <div class="va-name">Seisma AI</div>
+      <div class="va-status"><span class="va-sdot"></span>Earthquake Engineering Expert</div>
+      <div class="wavebars" id="va-waves" style="display:none;"><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div></div>
+    </div>
+    <button onclick="toggleVA()" style="margin-left:auto;background:none;border:none;color:rgba(148,163,184,.45);font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div class="va-msgs" id="va-msgs"></div>
+  <div class="qcmds">
+    <div class="qcmd" onclick="vaCmd('Read analysis results')">📊 Results</div>
+    <div class="qcmd" onclick="vaCmd('Explain base shear')">⚡ Base Shear</div>
+    <div class="qcmd" onclick="vaCmd('Simulate earthquake')">💥 Simulate</div>
+    <div class="qcmd" onclick="vaCmd('Tell me about underground parking')">🅿 Parking</div>
+    <div class="qcmd" onclick="vaCmd('Explain IS 1893')">📋 IS 1893</div>
+    <div class="qcmd" onclick="vaCmd('Rebar recommendations')">🔩 Rebar</div>
+  </div>
+  <div class="va-ctrls">
+    <input id="va-inp" class="va-inp" placeholder="Ask Seisma anything..." onkeydown="if(event.key==='Enter')vaSend()">
+    <button class="va-mic" id="va-mic-btn" onclick="vaToggleMic()">🎤</button>
+    <button class="va-send" onclick="vaSend()">➤</button>
+  </div>
+</div>
+
+<!-- CONFIGURATOR -->
+<div id="app">
+<div class="cfg">
+<div style="display:flex;flex-direction:column;gap:20px;">
+  <div class="card">
+    <div class="ch"><div class="ci" style="background:rgba(0,170,255,.18);">🗺️</div><span class="ct" style="color:#00aaff;">Seismic Location</span></div>
+    <div class="cb">
+      <button id="gps-btn" onclick="detectGPS()"><div class="gps-pulse"></div>📍 Auto-detect My Location (GPS)</button>
+      <button id="acropolis-btn" onclick="setAcropolis()" style="width:100%;padding:9px;margin-bottom:12px;background:rgba(204,68,255,.10);border:1px solid rgba(204,68,255,.4);border-radius:10px;color:#cc44ff;font-size:.75rem;font-weight:700;letter-spacing:.8px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;">
+        🎓 Acropolis Institute, Indore — Live Location
+      </button>
+      <div class="fg">
+        <div class="fl">Indian City / Region</div>
+        <select id="city-sel">
+          <option value="">— Select Location —</option>
+          <optgroup label="Zone V (Extreme – Z=0.36)">
+            <option value="z5_guw">Guwahati, Assam</option><option value="z5_sri">Srinagar, J&K</option>
+            <option value="z5_imp">Imphal, Manipur</option><option value="z5_shi">Shillong, Meghalaya</option>
+            <option value="z5_pat">Patna, Bihar</option><option value="z5_kan">Kangra, H.P.</option>
+          </optgroup>
+          <optgroup label="Zone IV (Severe – Z=0.24)">
+            <option value="z4_del">Delhi NCR</option><option value="z4_mum">Mumbai, Maharashtra</option>
+            <option value="z4_jam">Jammu, J&K</option><option value="z4_deh">Dehradun, Uttarakhand</option>
+            <option value="z4_jab">Jabalpur, M.P.</option>
+          </optgroup>
+          <optgroup label="Zone III (Moderate – Z=0.16)">
+            <option value="z3_luc">Lucknow, U.P.</option><option value="z3_agr">Agra, U.P.</option>
+            <option value="z3_pun">Pune, Maharashtra</option><option value="z3_kol">Kolkata, W.B.</option>
+            <option value="z3_bho">Bhopal, M.P.</option>
+            <option value="z3_ind" selected>⭐ Indore, M.P. — Acropolis (Live)</option>
+            <option value="z3_ahm">Ahmedabad, Gujarat</option>
+          </optgroup>
+          <optgroup label="Zone II (Low – Z=0.10)">
+            <option value="z2_ban">Bengaluru, Karnataka</option><option value="z2_hyd">Hyderabad, Telangana</option>
+            <option value="z2_che">Chennai, T.N.</option><option value="z2_coi">Coimbatore, T.N.</option>
+            <option value="z2_tri">Thiruvananthapuram, Kerala</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="zone-wrap"><canvas id="zone-canvas"></canvas></div>
+      <div id="zone-info" style="text-align:center;font-size:.74rem;">Select a city to see seismic zone</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ci" style="background:rgba(0,255,136,.15);">🏗️</div><span class="ct" style="color:#00ff88;">Structure Parameters</span></div>
+    <div class="cb">
+      <div class="fg"><div class="fl">Above-Ground Storeys <span id="sv">5</span></div><input type="range" id="s-range" min="1" max="30" value="5"></div>
+      <div class="fg"><div class="fl">Underground Basements <span id="bsv">2</span></div><input type="range" id="bs-range" min="0" max="3" value="2"></div>
+      <div class="fg"><div class="fl">Bay Width (m) <span id="bv">6.0</span></div><input type="range" id="b-range" min="3" max="12" value="6" step="0.5"></div>
+      <div class="fg"><div class="fl">Storey Height (m) <span id="shv">3.5</span></div><input type="range" id="sh-range" min="2.5" max="5" value="3.5" step="0.1"></div>
+      <div class="fg"><div class="fl">Structure Type</div>
+        <select id="struct-type">
+          <option value="RC_SMRF">RC Special MRF (SMRF)</option><option value="RC_OMRF">RC Ordinary MRF (OMRF)</option>
+          <option value="WALL">Shear Wall + Frame</option><option value="DUAL">Dual System</option><option value="STEEL">Steel Braced Frame</option>
+        </select>
+      </div>
+      <div class="fg"><div class="fl">Importance Factor (I)</div>
+        <div class="chip-row" id="imp-chips">
+          <div class="chip" data-v="1.0">I=1.0</div><div class="chip active" data-v="1.2">I=1.2</div>
+          <div class="chip" data-v="1.5">I=1.5</div><div class="chip" data-v="1.75">I=1.75</div>
+        </div>
+      </div>
+      <div class="fg"><div class="fl">Damping</div>
+        <select id="damp-sel"><option value="5">5% – RC (IS 1893)</option><option value="2">2% – Steel</option><option value="10">10% – Masonry</option></select>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ci" style="background:rgba(255,204,0,.15);">🌍</div><span class="ct" style="color:#ffcc00;">Soil Profile</span></div>
+    <div class="cb">
+      <div class="fg"><div class="fl">Soil Type (IS 1893)</div>
+        <select id="soil-type">
+          <option value="I">Type I – Rock / Hard</option><option value="II" selected>Type II – Medium</option>
+          <option value="III">Type III – Soft</option>
+        </select>
+      </div>
+      <canvas id="soil-canvas"></canvas>
+      <div class="fg"><div class="fl">SPT-N Value <span id="sptv">15</span></div><input type="range" id="spt-range" min="0" max="60" value="15"></div>
+      <div class="fg"><div class="fl">Foundation Depth (m) <span id="fdv">1.5</span></div><input type="range" id="fd-range" min="0.5" max="5" value="1.5" step="0.1"></div>
+    </div>
+  </div>
+  <button id="analyze-btn" onclick="analyze()">⚡ Analyze Seismic Design</button>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:20px;">
+  <div class="card">
+    <div class="ch">
+      <div class="ci" style="background:rgba(255,68,68,.2);">📡</div>
+      <span class="ct" style="color:#ff4444;">2D Seismic Simulation</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <div class="ldots" id="sim-loader" style="display:none;"><span></span><span></span><span></span></div>
+        <button id="sim-btn" onclick="simulate2D()">💥 Simulate</button>
+      </div>
+    </div>
+    <div class="cb" style="padding:14px;">
+      <div class="bwrap">
+        <canvas id="building-canvas"></canvas>
+        <div class="qpanel">
+          <div class="qpl">Magnitude</div><div class="qpv" id="mag-d">—</div>
+          <div class="qpr"><div class="qpl">PGA</div><span id="pga-d" style="color:#ffcc00;font-weight:700;font-size:.85rem;">— g</span></div>
+          <div class="qpr"><div class="qpl">Period T</div><span id="period-d" style="color:#00ff88;font-weight:700;font-size:.85rem;">— s</span></div>
+          <div class="qpr"><div class="qpl">Ah</div><span id="ah-disp" style="color:#00aaff;font-weight:700;font-size:.85rem;">—</span></div>
+        </div>
+        <div class="rchwrap"><canvas id="richter-canvas" width="120" height="80"></canvas></div>
+      </div>
+      <div style="margin-top:11px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:rgba(148,163,184,.35);margin-bottom:6px;">Ground Acceleration Waveform (g vs t)</div><canvas id="wf-canvas"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ci" style="background:rgba(204,68,255,.18);">📈</div><span class="ct" style="color:#cc44ff;">IS 1893 Response Spectrum</span><div style="margin-left:auto;font-size:.64rem;color:rgba(148,163,184,.33);">Cl. 6.4.2</div></div>
+    <div class="cb" style="padding:14px;"><canvas id="spec-canvas"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="cb">
+      <div class="tabs">
+        <div class="tab active" data-tab="results">📊 Results</div>
+        <div class="tab" data-tab="is1893">📋 IS 1893</div>
+        <div class="tab" data-tab="rebar">🔩 Rebar</div>
+        <div class="tab" data-tab="ai">🤖 AI</div>
+      </div>
+      <div class="tp active" id="tp-results">
+        <div class="rgrid">
+          <div class="rc" style="--ac:#00aaff;"><div class="rcl">Seismic Zone</div><div class="rcv" id="r-zone">—</div><div class="rcu">IS 1893</div></div>
+          <div class="rc" style="--ac:#ff4444;"><div class="rcl">Zone Factor Z</div><div class="rcv" id="r-z">—</div><div class="rcu">PGA</div></div>
+          <div class="rc" style="--ac:#00ff88;"><div class="rcl">Weight W</div><div class="rcv" id="r-w">—</div><div class="rcu">kN</div></div>
+          <div class="rc" style="--ac:#ffcc00;"><div class="rcl">Base Shear Vb</div><div class="rcv" id="r-vb">—</div><div class="rcu">kN</div></div>
+          <div class="rc" style="--ac:#cc44ff;"><div class="rcl">Period T</div><div class="rcv" id="r-t">—</div><div class="rcu">seconds</div></div>
+          <div class="rc" style="--ac:#ff8800;"><div class="rcl">Sa/g</div><div class="rcv" id="r-sa">—</div><div class="rcu">Spectral</div></div>
+          <div class="rc" style="--ac:#00aaff;"><div class="rcl">Ah Design</div><div class="rcv" id="r-ah">—</div><div class="rcu">g</div></div>
+          <div class="rc" style="--ac:#ff4444;"><div class="rcl">Response R</div><div class="rcv" id="r-rf">—</div><div class="rcu">Table 9</div></div>
+        </div>
+        <div id="risk-wrap" style="display:none;">
+          <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:1px;color:rgba(148,163,184,.55);margin-bottom:6px;">Seismic Risk Level</div>
+          <div class="risk-meter"><div class="risk-fill" id="risk-fill"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:.6rem;color:rgba(148,163,184,.33);margin-top:2px;"><span>Low</span><span>Moderate</span><span>High</span><span>Extreme</span></div>
+          <div id="risk-label" style="font-size:.78rem;font-weight:700;margin-top:8px;"></div>
+        </div>
+      </div>
+      <div class="tp" id="tp-is1893">
+        <div style="font-size:.74rem;color:rgba(148,163,184,.72);margin-bottom:14px;line-height:1.7;">IS 1893 (Part 1): 2016 — Criteria for Earthquake Resistant Design</div>
+        <div id="sdc-wrap" style="display:none;margin-bottom:14px;"><div style="font-size:.63rem;letter-spacing:1.5px;text-transform:uppercase;color:rgba(148,163,184,.5);">Seismic Design Category</div><div class="sdc-badge" id="sdc-badge"></div></div>
+        <ul class="comp-list" id="comp-list"><li class="comp-item" style="color:rgba(148,163,184,.35);"><div class="ck" style="background:rgba(255,255,255,.04);color:rgba(148,163,184,.28);">?</div><span>Run analysis to see IS 1893 compliance checks</span></li></ul>
+      </div>
+      <div class="tp" id="tp-rebar">
+        <div class="tabs" style="margin-bottom:10px;">
+          <div class="tab active" data-rb="beam">Beam</div>
+          <div class="tab" data-rb="column">Column</div>
+          <div class="tab" data-rb="slab">Slab</div>
+        </div>
+        <canvas id="rebar-canvas"></canvas>
+        <div class="rgrid" style="grid-template-columns:repeat(4,1fr);">
+          <div class="rc" style="--ac:#cc44ff;"><div class="rcl">Min%</div><div class="rcv" id="rb-min" style="font-size:1rem;">—</div><div class="rcu">IS 13920</div></div>
+          <div class="rc" style="--ac:#00ff88;"><div class="rcl">Max%</div><div class="rcv" id="rb-max" style="font-size:1rem;">—</div><div class="rcu">IS 13920</div></div>
+          <div class="rc" style="--ac:#ff8800;"><div class="rcl">Stir.</div><div class="rcv" id="rb-stir" style="font-size:1rem;">—</div><div class="rcu">mm</div></div>
+          <div class="rc" style="--ac:#00aaff;"><div class="rcl">Cover</div><div class="rcv" id="rb-cov" style="font-size:1rem;">—</div><div class="rcu">mm</div></div>
+        </div>
+        <div class="info-box" id="rebar-info">Run analysis to generate IS 13920 detailing.</div>
+      </div>
+      <div class="tp" id="tp-ai">
+        <div id="ai-content">
+          <div style="text-align:center;padding:26px;color:rgba(148,163,184,.35);">
+            <div style="font-size:2.5rem;margin-bottom:12px;">🤖</div>
+            <div style="font-size:.78rem;line-height:1.7;">Run analysis to unlock AI-powered<br>IS 1893:2016 design insights</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card full-w">
+  <div class="ch"><div class="ci" style="background:rgba(204,68,255,.18);">📊</div><span class="ct" style="color:#cc44ff;">Lateral Force Distribution</span><div style="margin-left:auto;font-size:.62rem;color:rgba(148,163,184,.32);">IS 1893 Cl. 7.7.1</div></div>
+  <div class="cb" style="padding:14px;">
+    <canvas id="storey-canvas"></canvas>
+    <div id="stbl-wrap" style="margin-top:14px;overflow-x:auto;display:none;">
+      <table class="stbl">
+        <thead><tr><th style="text-align:left;">Floor</th><th>h (m)</th><th>Wi (kN)</th><th>Wihi² (kN·m²)</th><th>Qi (kN)</th><th>Cumul. Shear (kN)</th></tr></thead>
+        <tbody id="stbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<footer>
+  <span>SeismoForge 3D — Earthquake Resistant Design Configurator | PS7 · Hackathon 2</span>
+  <div class="frefs"><span>IS 1893:2016</span><span>IS 13920:2016</span><span>IS 456:2000</span><span>SP 22:1982</span></div>
+  <span>Preliminary guidance only · Verify with licensed structural engineer</span>
+</footer>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const CITIES={z5_guw:{zone:'V',Z:.36,city:'Guwahati',state:'Assam'},z5_sri:{zone:'V',Z:.36,city:'Srinagar',state:'J&K'},z5_imp:{zone:'V',Z:.36,city:'Imphal',state:'Manipur'},z5_shi:{zone:'V',Z:.36,city:'Shillong',state:'Meghalaya'},z5_pat:{zone:'V',Z:.36,city:'Patna',state:'Bihar'},z5_kan:{zone:'V',Z:.36,city:'Kangra',state:'H.P.'},z4_del:{zone:'IV',Z:.24,city:'Delhi NCR',state:'Delhi'},z4_mum:{zone:'IV',Z:.24,city:'Mumbai',state:'Maharashtra'},z4_jam:{zone:'IV',Z:.24,city:'Jammu',state:'J&K'},z4_deh:{zone:'IV',Z:.24,city:'Dehradun',state:'Uttarakhand'},z4_jab:{zone:'IV',Z:.24,city:'Jabalpur',state:'M.P.'},z3_luc:{zone:'III',Z:.16,city:'Lucknow',state:'U.P.'},z3_agr:{zone:'III',Z:.16,city:'Agra',state:'U.P.'},z3_pun:{zone:'III',Z:.16,city:'Pune',state:'Maharashtra'},z3_kol:{zone:'III',Z:.16,city:'Kolkata',state:'W.B.'},z3_bho:{zone:'III',Z:.16,city:'Bhopal',state:'M.P.'},z3_ind:{zone:'III',Z:.16,city:'Indore',state:'M.P.',lat:22.6983,lon:75.8795,landmark:'Acropolis Institute of Technology & Research'},z3_ahm:{zone:'III',Z:.16,city:'Ahmedabad',state:'Gujarat'},z2_ban:{zone:'II',Z:.10,city:'Bengaluru',state:'Karnataka'},z2_hyd:{zone:'II',Z:.10,city:'Hyderabad',state:'Telangana'},z2_che:{zone:'II',Z:.10,city:'Chennai',state:'T.N.'},z2_coi:{zone:'II',Z:.10,city:'Coimbatore',state:'T.N.'},z2_tri:{zone:'II',Z:.10,city:'Thiruvananthapuram',state:'Kerala'}};
+const ZC={'II':{fill:'rgba(0,255,136,.7)',text:'#00ff88',risk:'LOW',rp:20,grd:'linear-gradient(90deg,#00ff88,#88ff00)'},'III':{fill:'rgba(255,204,0,.7)',text:'#ffcc00',risk:'MODERATE',rp:45,grd:'linear-gradient(90deg,#ffcc00,#ff8800)'},'IV':{fill:'rgba(255,136,0,.7)',text:'#ff8800',risk:'SEVERE',rp:72,grd:'linear-gradient(90deg,#ff8800,#ff4444)'},'V':{fill:'rgba(255,68,68,.8)',text:'#ff4444',risk:'EXTREME',rp:94,grd:'linear-gradient(90deg,#ff4444,#cc0000)'}};
+const SR={RC_SMRF:{R:5},RC_OMRF:{R:3},WALL:{R:4},DUAL:{R:5},STEEL:{R:4}};
+const SOILD={'I':{TP:.4},'II':{TP:.55},'III':{TP:.67}};
+const S={city:null,n:5,nb:2,bay:6,sh:3.5,struct:'RC_SMRF',I:1.2,damp:5,soil:'II',spt:15,fd:1.5,res:null,rbMode:'beam',simming2d:false};
+
+// ============================================================
+// INTRO SCREEN ENGINE
+// ============================================================
+(function(){
+  const ic=document.getElementById('intro-canvas'),ctx=ic.getContext('2d');
+  function rsz(){ic.width=window.innerWidth;ic.height=window.innerHeight;}
+  rsz();window.addEventListener('resize',rsz);
+  const epicenters=[{x:.5,y:.5,maxR:420,speed:.9,rs:0},{x:.18,y:.72,maxR:280,speed:.65,rs:90},{x:.82,y:.28,maxR:240,speed:.8,rs:160}];
+  const ptcs=[];for(let i=0;i<90;i++)ptcs.push({x:Math.random(),y:Math.random(),vx:(Math.random()-.5)*.0008,vy:(Math.random()-.5)*.0008,r:Math.random()*1.5+.3,c:['#00aaff22','#00ff8816','#ff444412','#cc44ff14'][~~(Math.random()*4)]});
+  const waves=[{f:.018,a:38,ph:0,sp:80,c:'rgba(255,68,68,.3)',lw:1.8},{f:.012,a:58,ph:2,sp:60,c:'rgba(255,204,0,.24)',lw:1.5},{f:.026,a:24,ph:1,sp:100,c:'rgba(0,170,255,.32)',lw:1.5},{f:.014,a:72,ph:3,sp:50,c:'rgba(204,68,255,.2)',lw:1.2},{f:.033,a:19,ph:.5,sp:120,c:'rgba(0,255,136,.22)',lw:1}];
+  let t=0,animating=true;
+  function draw(){
+    if(!animating)return;
+    const W=ic.width,H=ic.height;
+    ctx.fillStyle='rgba(2,8,16,.14)';ctx.fillRect(0,0,W,H);
+    // Grid
+    ctx.strokeStyle='rgba(0,170,255,.035)';ctx.lineWidth=.5;
+    for(let x=0;x<W;x+=44){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=44){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // Seismic waves
+    waves.forEach(w=>{
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=2){const y=H/2+Math.sin(x*w.f+t/w.sp)*w.a+Math.sin(x*w.f*1.8+t/(w.sp*.75))*w.a*.38+Math.sin(x*w.f*.6+t/(w.sp*1.4))*w.a*.18;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+      ctx.strokeStyle=w.c;ctx.lineWidth=w.lw;ctx.stroke();
+    });
+    // Epicenter rings
+    epicenters.forEach(ep=>{
+      const cx=ep.x*W,cy=ep.y*H;
+      for(let ring=0;ring<4;ring++){const r=(ep.rs+ring*ep.maxR/4)%ep.maxR,alpha=(1-r/ep.maxR)*.45;if(alpha>.01){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle=`rgba(0,170,255,${alpha})`;ctx.lineWidth=(1-r/ep.maxR)*2.5;ctx.stroke();}}
+      ep.rs=(ep.rs+ep.speed)%ep.maxR;
+      ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fillStyle='rgba(0,170,255,.7)';ctx.shadowColor='#00aaff';ctx.shadowBlur=10;ctx.fill();ctx.shadowBlur=0;
+    });
+    // Particles
+    ptcs.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=1;if(p.x>1)p.x=0;if(p.y<0)p.y=1;if(p.y>1)p.y=0;ctx.beginPath();ctx.arc(p.x*W,p.y*H,p.r,0,Math.PI*2);ctx.fillStyle=p.c;ctx.fill();});
+    t++;requestAnimationFrame(draw);
+  }
+  draw();
+  window._stopIntroCanvas=()=>{animating=false;};
+})();
+
+// INTRO SEQUENCE
+window.addEventListener('DOMContentLoaded',()=>{
+  const msgs=['🌍 Scanning tectonic plate boundaries...','📡 Connecting to seismic data networks...','🏗 Loading IS 1893:2016 engine...','🎨 Initializing 3D BIM renderer...','🤖 Seisma AI coming online...','📍 GPS seismic zone detector ready...','⚡ System calibrated and initialized!'];
+  setTimeout(()=>document.getElementById('intro-logo').classList.add('iv'),700);
+  setTimeout(()=>document.getElementById('intro-tagline').classList.add('iv'),1500);
+  setTimeout(()=>{
+    document.getElementById('intro-loader').classList.add('iv');
+    document.getElementById('intro-seisma').classList.add('iv');
+    document.getElementById('intro-footer').classList.add('iv');
+    let prog=0,mi=0;
+    const bar=document.getElementById('intro-bar');
+    const pct=document.getElementById('intro-pct');
+    const msg=document.getElementById('intro-msg');
+    const iv=setInterval(()=>{
+      prog+=100/(msgs.length*5);
+      const p=Math.min(prog,100);
+      bar.style.width=p+'%';
+      pct.textContent=~~p+'%';
+      if(prog>=(mi+1)*(100/msgs.length)&&mi<msgs.length){msg.style.opacity=0;setTimeout(()=>{if(msgs[mi])msg.textContent=msgs[mi];msg.style.opacity=1;mi++;},200);}
+      if(p>=100){clearInterval(iv);msg.textContent='✅ SEISMOFORGE 3D — READY';setTimeout(()=>{document.getElementById('intro-skip').classList.add('iv');setTimeout(launchSite,1200);},400);}
+    },100);
+  },2300);
+});
+
+function launchSite(){
+  const intro=document.getElementById('intro-screen');
+  intro.classList.add('exit');
+  document.body.classList.add('loaded');
+  setTimeout(()=>{intro.style.display='none';window._stopIntroCanvas&&window._stopIntroCanvas();},750);
+}
+
+// ============================================================
+// GPS AUTO-DETECT
+// ============================================================
+// ============================================================
+// SET ACROPOLIS INDORE — LIVE LOCATION PRESET
+// ============================================================
+function setAcropolis(){
+  // Acropolis Institute of Technology & Research, Indore, M.P.
+  // Coordinates: 22.6983° N, 75.8795° E
+  const key='z3_ind';
+  const btn=document.getElementById('acropolis-btn');
+  btn.innerHTML='⏳ Setting Acropolis, Indore...';
+  setTimeout(()=>{
+    document.getElementById('city-sel').value=key;
+    document.getElementById('city-sel').dispatchEvent(new Event('change'));
+    btn.innerHTML='✅ Acropolis, Indore — Zone III Set!';
+    btn.style.background='rgba(204,68,255,.22)';
+    btn.style.boxShadow='0 0 20px rgba(204,68,255,.35)';
+    // Also update GPS button to show detected
+    const gb=document.getElementById('gps-btn');
+    gb.innerHTML='📍 22.6983°N, 75.8795°E — Indore M.P.';
+    gb.style.background='rgba(204,68,255,.12)';
+    gb.style.borderColor='rgba(204,68,255,.4)';
+    gb.style.color='#cc44ff';
+    if(VA.open){
+      const m='Live location set! Acropolis Institute of Technology and Research, Indore, Madhya Pradesh. Seismic Zone 3, zone factor Z equals 0.16. Moderate seismic risk. Your building will experience moderate lateral forces during an earthquake.';
+      VA.addMsg(m,'ai');VA.speak(m);
+    }
+  },600);
+}
+
+async function detectGPS(){
+  const btn=document.getElementById('gps-btn');
+  btn.innerHTML='⏳ Detecting location...';btn.disabled=true;
+  if(!navigator.geolocation){btn.innerHTML='❌ Geolocation not supported';btn.disabled=false;return;}
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:lat,longitude:lon}=pos.coords;
+    btn.innerHTML=`📡 Reverse geocoding (${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E)...`;
+    try{
+      const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`,{headers:{'User-Agent':'SeismoForge-Hackathon'}});
+      const data=await res.json();
+      const city=(data.address.city||data.address.town||data.address.village||data.address.county||'').toLowerCase();
+      const state=(data.address.state||'').toLowerCase();
+      const key=matchToCity(city,state,lat,lon);
+      if(key){
+        document.getElementById('city-sel').value=key;
+        document.getElementById('city-sel').dispatchEvent(new Event('change'));
+        const cd=CITIES[key];
+        const extra=cd.landmark?` · ${cd.landmark}`:'';
+        btn.innerHTML=`✅ ${cd.city}, ${cd.state} — Zone ${cd.zone}${extra}`;
+        btn.style.background='rgba(0,255,136,.15)';btn.style.borderColor='rgba(0,255,136,.4)';btn.style.color='#00ff88';
+        btn.disabled=false;
+        if(VA.open){const m=`Location detected! You are in ${cd.city}, ${cd.state}${extra}. Seismic Zone ${cd.zone}, Z equals ${cd.Z}. Risk: ${ZC[cd.zone].risk}!`;VA.addMsg(m,'ai');VA.speak(m);}
+      }else{
+        const fallback=detectByCoords(lat,lon);
+        if(fallback){document.getElementById('city-sel').value=fallback;document.getElementById('city-sel').dispatchEvent(new Event('change'));btn.innerHTML=`✅ Zone ${CITIES[fallback].zone} detected by GPS`;btn.disabled=false;}
+        else{btn.innerHTML=`📍 ${data.address.city||'Location found'} (select manually)`;btn.disabled=false;}
+      }
+    }catch(e){
+      const key=detectByCoords(lat,lon);
+      if(key){document.getElementById('city-sel').value=key;document.getElementById('city-sel').dispatchEvent(new Event('change'));btn.innerHTML='✅ Zone detected by coordinates';btn.disabled=false;}
+      else{btn.innerHTML='⚠ Reverse geocoding failed — try manual';btn.disabled=false;}
+    }
+  },err=>{btn.innerHTML='❌ Location permission denied';btn.disabled=false;setTimeout(()=>{btn.innerHTML='📍 Auto-detect My Location (GPS)';btn.disabled=false;btn.style='';},3000);});
+}
+
+function matchToCity(city,state,lat,lon){
+  // Indore coordinates bounding box check first (priority for Acropolis)
+  if(lat>=22.5&&lat<=22.85&&lon>=75.7&&lon<=76.1)return 'z3_ind';
+  const cm={'guwahati':'z5_guw','srinagar':'z5_sri','imphal':'z5_imp','shillong':'z5_shi','patna':'z5_pat','kangra':'z5_kan','delhi':'z4_del','new delhi':'z4_del','mumbai':'z4_mum','thane':'z4_mum','navi mumbai':'z4_mum','jammu':'z4_jam','dehradun':'z4_deh','jabalpur':'z4_jab','lucknow':'z3_luc','agra':'z3_agr','jaipur':'z3_agr','kanpur':'z3_luc','varanasi':'z3_agr','prayagraj':'z3_agr','pune':'z3_pun','kolkata':'z3_kol','bhopal':'z3_bho','indore':'z3_ind','nagpur':'z3_bho','ahmedabad':'z3_ahm','surat':'z3_ahm','bengaluru':'z2_ban','bangalore':'z2_ban','hyderabad':'z2_hyd','secunderabad':'z2_hyd','chennai':'z2_che','coimbatore':'z2_coi','thiruvananthapuram':'z2_tri','trivandrum':'z2_tri','kochi':'z2_tri','madurai':'z2_che'};
+  for(const[n,k]of Object.entries(cm)){if(city.includes(n))return k;}
+  const sm={'assam':'z5_guw','manipur':'z5_imp','meghalaya':'z5_shi','nagaland':'z5_imp','mizoram':'z5_imp','tripura':'z5_imp','arunachal':'z5_imp','sikkim':'z5_imp','bihar':'z5_pat','himachal':'z5_kan','delhi':'z4_del','maharashtra':'z4_mum','uttarakhand':'z4_deh','uttar pradesh':'z3_luc','west bengal':'z3_kol','gujarat':'z3_ahm','rajasthan':'z3_agr','karnataka':'z2_ban','telangana':'z2_hyd','andhra pradesh':'z2_hyd','tamil nadu':'z2_che','kerala':'z2_tri','odisha':'z3_kol','jharkhand':'z5_pat'};
+  for(const[n,k]of Object.entries(sm)){if(state.includes(n))return k;}
+  return detectByCoords(lat,lon);
+}
+
+function detectByCoords(lat,lon){
+  if(!lat||!lon)return null;
+  // Indore / Acropolis specific bbox
+  if(lat>=22.5&&lat<=22.85&&lon>=75.7&&lon<=76.1)return 'z3_ind';
+  if(lat>23&&lon>88&&lat<28)return 'z5_guw';
+  if(lat>33&&lon>74)return 'z5_sri';
+  if(lat>27&&lat<30&&lon>76&&lon<78)return 'z4_del';
+  if(lat>18&&lat<21&&lon>72&&lon<74)return 'z4_mum';
+  if(lat>12&&lat<14&&lon>77&&lon<78)return 'z2_ban';
+  if(lat>12&&lat<14&&lon>79&&lon<81)return 'z2_che';
+  if(lat>17&&lat<18&&lon>78&&lon<79)return 'z2_hyd';
+  if(lat>25&&lat<29&&lon>80&&lon<83)return 'z3_luc';
+  if(lat>22&&lat<24&&lon>72&&lon<74)return 'z3_ahm';
+  if(lat>22&&lat<24&&lon>85&&lon<88)return 'z3_kol';
+  if(lat>21&&lat<23&&lon>75&&lon<78)return 'z3_ind'; // Central M.P. fallback
+  return 'z3_ind'; // Default to Indore (our home city!)
+}
+
+// ============================================================
+// PARTICLE BACKGROUND
+// ============================================================
+(function(){const c=document.getElementById('bg-canvas'),ctx=c.getContext('2d');let W,H,pts=[];function rsz(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}rsz();window.addEventListener('resize',rsz);for(let i=0;i<65;i++)pts.push({x:Math.random()*3000,y:Math.random()*3000,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:Math.random()*1.4+.3,c:['#00aaff2a','#00ff8816','#ff444412','#cc44ff14'][~~(Math.random()*4)]});function draw(){ctx.clearRect(0,0,W,H);pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.c;ctx.fill();});pts.forEach((a,i)=>pts.slice(i+1).forEach(b=>{const d=Math.hypot(a.x-b.x,a.y-b.y);if(d<110){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(0,170,255,${.025*(1-d/110)})`;ctx.lineWidth=.5;ctx.stroke();}}));requestAnimationFrame(draw);}draw();})();
+window.addEventListener('scroll',()=>document.getElementById('navbar').classList.toggle('vis',window.scrollY>window.innerHeight*.4));
+
+// ============================================================
+// THREE.JS 3D ENGINE
+// ============================================================
+class Building3D{
+  constructor(){this.container=document.getElementById('three-container');this.W=this.container.offsetWidth||900;this.H=this.container.offsetHeight||570;this.scene=new THREE.Scene();this.camera=new THREE.PerspectiveCamera(45,this.W/this.H,.1,500);this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});this.controls=null;this.buildingGrp=new THREE.Group();this.floorMeshes=[];this.stressMode=false;this.sectionMode=false;this.shaking=false;this.elevatorCar=null;this.elevT=0;this.elevMin=0;this.elevMax=15;this.buildingFH=3.5;this.buildingBH=3.2;this.nFloors=5;this.nBasement=2;this.init();}
+  init(){this.scene.background=new THREE.Color(0x060d1a);this.scene.fog=new THREE.FogExp2(0x060d1a,.011);this.camera.position.set(28,20,32);this.renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));this.renderer.setSize(this.W,this.H);this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.3;this.container.appendChild(this.renderer.domElement);this.controls=new THREE.OrbitControls(this.camera,this.renderer.domElement);this.controls.enableDamping=true;this.controls.dampingFactor=.06;this.controls.minDistance=8;this.controls.maxDistance=120;this.controls.target.set(0,8,0);this.addLights();this.addGround();this.addSoilSection();this.scene.add(this.buildingGrp);this.build(S.n,S.nb);this.addRaycaster();this.animate();window.addEventListener('resize',()=>this.resize());}
+  addLights(){this.scene.add(new THREE.AmbientLight(0x112244,.9));const sun=new THREE.DirectionalLight(0xffffff,1.8);sun.position.set(30,60,20);sun.castShadow=true;sun.shadow.mapSize.width=2048;sun.shadow.mapSize.height=2048;sun.shadow.camera.left=-40;sun.shadow.camera.right=40;sun.shadow.camera.top=60;sun.shadow.camera.bottom=-40;this.scene.add(sun);this.scene.add(new THREE.PointLight(0x0055cc,2,60,1.5));const ul=new THREE.PointLight(0xff8833,1.5,25,2);ul.position.set(0,-8,0);this.scene.add(ul);const rim=new THREE.PointLight(0x00aaff,1.2,80);rim.position.set(-30,15,-25);this.scene.add(rim);this.pulseLight=new THREE.PointLight(0xff4444,0,30);this.scene.add(this.pulseLight);}
+  addGround(){const g=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.MeshStandardMaterial({color:0x0a1020,roughness:.95,metalness:.05}));g.rotation.x=-Math.PI/2;g.receiveShadow=true;this.scene.add(g);this.scene.add(new THREE.GridHelper(120,60,0x0a3355,0x051020));}
+  addSoilSection(){[{y:-1.8,h:2.2,col:0x7a6545},{y:-5,h:3.5,col:0x5c4a30},{y:-9.5,h:5,col:0x3d2e1e}].forEach(l=>{const m=new THREE.Mesh(new THREE.BoxGeometry(5,l.h,12),new THREE.MeshStandardMaterial({color:l.col,roughness:.95,transparent:true,opacity:.8}));m.position.set(12,l.y,0);this.scene.add(m);});}
+  mat(col,rough=.6,metal=.1,trans=false,op=1){return new THREE.MeshStandardMaterial({color:col,roughness:rough,metalness:metal,transparent:trans,opacity:op,side:THREE.DoubleSide});}
+  build(nFloors,nBasement){
+    while(this.buildingGrp.children.length>0)this.buildingGrp.remove(this.buildingGrp.children[0]);
+    this.floorMeshes=[];this.elevatorCar=null;this.nFloors=nFloors;this.nBasement=nBasement;
+    const W=12,D=10,FH=3.5,BH=3.2;this.buildingW=W;this.buildingD=D;
+    this.addFoundation(W,D,nBasement,BH);
+    for(let b=nBasement;b>=1;b--)this.addBasement(W,D,BH,-b*BH+BH/2,b);
+    for(let f=0;f<=nFloors;f++)this.addFloor(W,D,FH,f*FH,f,nFloors);
+    this.addRoof(W,D,nFloors*FH,FH);
+    this.addStaircase(W,D,FH,nFloors,nBasement,BH);
+    this.addElevator(W,D,FH,nFloors,nBasement,BH);
+    this.addParkingRamp(W,D,BH);
+    this.elevMin=-nBasement*BH;this.elevMax=nFloors*FH-2;
+    this.updateFloorList();
+  }
+  addFoundation(W,D,nBase,BH){const pD=nBase*BH+6,pBot=-nBase*BH-pD/2,pM=this.mat(0x3a2f5a,.8,.2);[[-W/2+.6,-D/2+.6],[W/2-.6,-D/2+.6],[-W/2+.6,D/2-.6],[W/2-.6,D/2-.6],[0,0],[-W/3,0],[W/3,0],[0,-D/3],[0,D/3]].forEach(([px,pz])=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.22,.28,pD,8),pM);m.position.set(px,pBot,pz);this.buildingGrp.add(m);});const cap=new THREE.Mesh(new THREE.BoxGeometry(W+1,.5,D+1),this.mat(0x2a2240,.9,.1));cap.position.y=-nBase*BH-.25;this.buildingGrp.add(cap);}
+  addBasement(W,D,BH,y,level){const grp=new THREE.Group();const slab=new THREE.Mesh(new THREE.BoxGeometry(W,.4,D),this.mat(0x555566,.9,.05));grp.add(slab);[[0,D/2,W*.65,.3],[0,-D/2,W,.3],[W/2,0,.3,D],[-W/2,0,.3,D]].forEach(([x,z,w,d])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,BH,d),this.mat(0x444455,.95,.05));m.position.set(x,-BH/2,z);grp.add(m);});const flr=new THREE.Mesh(new THREE.BoxGeometry(W,.3,D),this.mat(0x444455,.9,.05));flr.position.y=-BH;grp.add(flr);[[-W/2+.4,-D/2+.4],[W/2-.4,-D/2+.4],[-W/2+.4,D/2-.4],[W/2-.4,D/2-.4],[0,0],[-W/4,0],[W/4,0]].forEach(([cx,cz])=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.28,.3,BH,8),this.mat(0x666677,.8,.15));m.position.set(cx,-BH/2,cz);grp.add(m);});const pl=new THREE.PointLight(0xffcc88,.8,12,2);pl.position.y=-1.5;grp.add(pl);this.addParkingMarkings(grp,W,D,-BH+.18);this.addCars(grp,W,D,-BH+.5);grp.position.y=y;grp.userData={type:'basement',level:-level};this.buildingGrp.add(grp);}
+  addParkingMarkings(grp,W,D,y){const lM=new THREE.MeshBasicMaterial({color:0xeeeecc});for(let i=0;i<=8;i++){const x=-W/2+.75+i*(W-1.5)/8;const ln=new THREE.Mesh(new THREE.BoxGeometry(.06,.01,D-.8),lM);ln.position.set(x,y,0);grp.add(ln);}const lane=new THREE.Mesh(new THREE.BoxGeometry(W,.01,.14),new THREE.MeshBasicMaterial({color:0xffff00}));lane.position.set(0,y,0);grp.add(lane);}
+  addCars(grp,W,D,y){const cols=[0xff3333,0x4488ff,0xffffff,0x888888,0x44cc88,0xffcc00];const spots=6;const sw=(W-1.5)/spots;for(let i=0;i<spots;i++){if(Math.random()>.25){const x=-W/2+.75+sw/2+i*sw,col=cols[i%cols.length];const body=new THREE.Mesh(new THREE.BoxGeometry(sw*.72,.65,D*.28),this.mat(col,.3,.8));body.position.set(x,y+.33,0);grp.add(body);const roof=new THREE.Mesh(new THREE.BoxGeometry(sw*.5,.38,D*.2),this.mat(col,.3,.75));roof.position.set(x,y+.33+.52,0);grp.add(roof);}}}
+  addFloor(W,D,FH,y,floorNum,totalFloors){const grp=new THREE.Group();const stress=floorNum/Math.max(totalFloors,1);const slabCol=new THREE.Color();slabCol.setHSL(.58-.05*stress,.7,.35+.15*stress);const slab=new THREE.Mesh(new THREE.BoxGeometry(W,.3,D),this.mat(slabCol,.8,.1));slab.castShadow=true;slab.receiveShadow=true;grp.add(slab);const cM=this.mat(0x777788,.75,.15);[[-W/2+.25,-D/2+.25],[W/2-.25,-D/2+.25],[-W/2+.25,D/2-.25],[W/2-.25,D/2-.25],[0,-D/2+.25],[0,D/2-.25],[-W/2+.25,0],[W/2-.25,0]].forEach(([cx,cz])=>{const col=new THREE.Mesh(new THREE.BoxGeometry(.42,FH,.42),cM);col.position.set(cx,FH/2,cz);col.castShadow=true;grp.add(col);});this.addFacade(grp,W,D,FH);grp.position.y=y;grp.userData={type:'floor',floorNum,stress};this.floorMeshes.push(grp);this.buildingGrp.add(grp);return grp;}
+  addFacade(grp,W,D,FH){const gM=new THREE.MeshStandardMaterial({color:0x226699,transparent:true,opacity:.55,roughness:.05,metalness:.9,side:THREE.DoubleSide});const sM=this.mat(0x334466,.6,.4);const wH=FH*.58,wY=FH*.55;[[0,D/2,W-.5,0],[0,-D/2,W-.5,Math.PI]].forEach(([x,z,w,ry])=>{const wg=new THREE.Mesh(new THREE.PlaneGeometry(w,wH),gM);wg.position.set(x,wY,z);wg.rotation.y=ry;grp.add(wg);const sp=new THREE.Mesh(new THREE.PlaneGeometry(w,FH*.28),sM);sp.position.set(x,wY-wH*.7,z);sp.rotation.y=ry;grp.add(sp);});[[W/2,0,D-.5,Math.PI/2],[-W/2,0,D-.5,-Math.PI/2]].forEach(([x,z,w,ry])=>{const wg=new THREE.Mesh(new THREE.PlaneGeometry(w,wH),gM);wg.position.set(x,wY,z);wg.rotation.y=ry;grp.add(wg);});}
+  addRoof(W,D,topY,FH){const rM=this.mat(0x778899,.9,.05);const roof=new THREE.Mesh(new THREE.BoxGeometry(W,.45,D),rM);roof.position.y=topY+FH;this.buildingGrp.add(roof);[[0,D/2,W,.25,1],[0,-D/2,W,.25,1],[W/2,0,.25,D,1],[-W/2,0,.25,D,1]].forEach(([x,z,w,d,h])=>{const p=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),rM);p.position.set(x,topY+FH+.45+h/2,z);this.buildingGrp.add(p);});const tank=new THREE.Mesh(new THREE.BoxGeometry(3.5,2.5,2.5),this.mat(0x888899,.8,.1));tank.position.set(-2.5,topY+FH+.45+1+1.25,0);this.buildingGrp.add(tank);const ant=new THREE.Mesh(new THREE.CylinderGeometry(.03,.06,5,6),this.mat(0xaaaaaa,.4,.8));ant.position.set(2.5,topY+FH+.45+1+2.5,0);this.buildingGrp.add(ant);}
+  addStaircase(W,D,FH,nF,nB,BH){const sM=this.mat(0xbbaa88,.8,.1),rM=this.mat(0x888888,.4,.9),stX=W/2-.8,stW=1.8,nS=12;for(let f=-nB;f<nF;f++){const baseY=f<0?f*BH:f*FH,curFH=f<0?BH:FH;const land=new THREE.Mesh(new THREE.BoxGeometry(stW,.12,stW),sM);land.position.set(stX,baseY,0);this.buildingGrp.add(land);for(let s=0;s<nS;s++){const step=new THREE.Mesh(new THREE.BoxGeometry(stW,.1,curFH/nS),sM);step.position.set(stX,baseY+s*(curFH/nS)+curFH/nS/2,stW/2-s*(stW/nS));this.buildingGrp.add(step);}const rl=new THREE.Mesh(new THREE.BoxGeometry(.04,curFH,stW),rM);rl.position.set(stX-stW/2+.04,baseY+curFH/2,0);this.buildingGrp.add(rl);}}
+  addElevator(W,D,FH,nF,nB,BH){const totalH=nF*FH+nB*BH,botY=-nB*BH;const shM=new THREE.MeshStandardMaterial({color:0x44aacc,transparent:true,opacity:.2,roughness:.05,metalness:.5});const shaft=new THREE.Mesh(new THREE.BoxGeometry(1.8,totalH,1.8),shM);shaft.position.set(0,botY+totalH/2,0);this.buildingGrp.add(shaft);const fM=this.mat(0x888888,.4,.9);[[-9,-9],[9,-9],[-9,9],[9,9]].forEach(([px,pz])=>{const fr=new THREE.Mesh(new THREE.BoxGeometry(.06,totalH,.06),fM);fr.position.set(px*.1,botY+totalH/2,pz*.1);this.buildingGrp.add(fr);});const cM=new THREE.MeshStandardMaterial({color:0xccddee,roughness:.3,metalness:.7,transparent:true,opacity:.85});const car=new THREE.Mesh(new THREE.BoxGeometry(1.4,2.2,1.4),cM);this.buildingGrp.add(car);this.elevatorCar=car;this.elevMin=botY;this.elevMax=nF*FH-2;}
+  addParkingRamp(W,D,BH){const rM=this.mat(0x555566,.9,.05);const ramp=new THREE.Mesh(new THREE.BoxGeometry(3,.2,BH+2),rM);ramp.rotation.x=Math.atan2(BH,BH+2);ramp.position.set(W/2+1.6,-BH/2,D/2-(BH+2)*.35);this.buildingGrp.add(ramp);const sign=new THREE.Mesh(new THREE.BoxGeometry(2.4,.04,1),this.mat(0x003399,.5,.2));sign.position.set(W/2+1.6,.1,D/2+.5);this.buildingGrp.add(sign);}
+  animate(){requestAnimationFrame(()=>this.animate());this.controls.update();if(this.elevatorCar){this.elevT+=.008;const tt=(Math.sin(this.elevT)*.5+.5);this.elevatorCar.position.y=this.elevMin+tt*(this.elevMax-this.elevMin)+1.1;const cf=Math.round((this.elevatorCar.position.y-1.1)/this.buildingFH);document.getElementById('view-floor-lbl').textContent=`Elevator: ${cf<=0?'B'+Math.abs(cf):'Floor '+Math.max(cf,0)}`;}if(this.shaking){this.pulseLight.intensity=1.5+Math.sin(Date.now()/100)*1.5;this.pulseLight.position.set(Math.sin(Date.now()/200)*5,5,Math.cos(Date.now()/200)*5);}this.renderer.render(this.scene,this.camera);}
+  resize(){this.W=this.container.offsetWidth;this.H=this.container.offsetHeight||570;this.camera.aspect=this.W/this.H;this.camera.updateProjectionMatrix();this.renderer.setSize(this.W,this.H);}
+  simulateEarthquake(intensity,durMs){if(this.shaking)return;this.shaking=true;document.getElementById('view-mode-lbl').textContent='🔴 Earthquake Simulation';const start=Date.now(),n=this.floorMeshes.length;const loop=()=>{const el=Date.now()-start,p=el/durMs;if(p>=1){this.floorMeshes.forEach(f=>f.position.x=0);this.shaking=false;this.pulseLight.intensity=0;document.getElementById('view-mode-lbl').textContent='🔵 Standard View';this.floorMeshes.forEach(f=>f.traverse(c=>{if(c.isMesh&&c.material.emissive)c.material.emissive.set(0x000000);}));return;}const env=Math.exp(-p*2)*(p<.12?p/.12:1);this.floorMeshes.forEach((f,i)=>{const hf=Math.pow((i+1)/n,1.5),dx=Math.sin(el/60)*intensity*env*hf+Math.sin(el/38)*intensity*.4*env*hf+(Math.random()-.5)*intensity*.12*env*hf;f.position.x=dx;f.traverse(c=>{if(c.isMesh&&c.material.emissive){c.material.emissive.setHSL(.0,Math.abs(dx/intensity)*.8,Math.abs(dx/intensity)*.25);}});});requestAnimationFrame(loop);};requestAnimationFrame(loop);}
+  toggleStressMode(){this.stressMode=!this.stressMode;document.getElementById('view-mode-lbl').textContent=this.stressMode?'🌡 Seismic Stress Mode':'🔵 Standard View';const n=this.floorMeshes.length;this.floorMeshes.forEach((f,i)=>{const stress=i/n;f.traverse(c=>{if(c.isMesh&&c.material){if(this.stressMode){c.material.emissive=new THREE.Color();c.material.emissive.setHSL(.33-stress*.33,.9,.2);c.material.emissiveIntensity=stress*.6+.2;}else{if(c.material.emissive)c.material.emissive.set(0x000000);c.material.emissiveIntensity=0;}}});});}
+  toggleSection(){this.sectionMode=!this.sectionMode;document.getElementById('view-mode-lbl').textContent=this.sectionMode?'✂ Section Cut':'🔵 Standard View';if(this.sectionMode){this.renderer.clippingPlanes=[new THREE.Plane(new THREE.Vector3(-1,0,0),2)];this.renderer.localClippingEnabled=true;}else{this.renderer.clippingPlanes=[];this.renderer.localClippingEnabled=false;}}
+  resetView(){this.controls.target.set(0,8,0);this.camera.position.set(28,20,32);document.getElementById('view-mode-lbl').textContent='🔵 Standard View';}
+  zoomToFloor(f){const tY=f<0?f*this.buildingBH:f*this.buildingFH+this.buildingFH/2;this.controls.target.set(0,tY,0);this.camera.position.set(20,tY+5,22);const lbl=f<0?`🅿 B${Math.abs(f)} Parking`:`Floor ${f===0?'Ground':f}`;document.getElementById('view-mode-lbl').textContent=lbl;this.selectFloor(f);}
+  selectFloor(f){this.floorMeshes.forEach(fm=>{const iS=(fm.userData.floorNum===f)||(fm.userData.level===f);fm.traverse(c=>{if(c.isMesh&&c.material){c.material.emissive=new THREE.Color(iS?0x002244:0x000000);c.material.emissiveIntensity=iS?.5:0;}});});this.showFloorInfo(f);document.querySelectorAll('.floor-btn').forEach(b=>b.classList.toggle('active',+b.dataset.floor===f));}
+  showFloorInfo(f){const panel=document.getElementById('fi-panel');panel.style.display='block';const res=S.res;if(f<0){document.getElementById('fi-title').textContent=`B${Math.abs(f)} Basement Parking`;document.getElementById('fi-content').innerHTML=`<div>Underground Level ${Math.abs(f)}</div><div>Height: ${this.buildingBH.toFixed(1)}m</div><div>Area: ${(this.buildingW*this.buildingD).toFixed(0)} m²</div><div style="color:#ff8800;margin-top:5px;">🏗 RC Retaining Walls</div><div style="color:#ff8800;">🚗 ~${Math.floor(this.buildingW/2)} parking spots</div><div style="color:#cc44ff;">🏗 Foundation piles below</div>`;}else{const qi=res&&res.storeyData[f-1]?res.storeyData[f-1].Qi.toFixed(1):'-';document.getElementById('fi-title').textContent=f===0?'Ground Floor (G)':`Floor ${f}`;document.getElementById('fi-content').innerHTML=`<div>Height: ${(f*this.buildingFH).toFixed(1)}m</div><div>Floor area: ${(this.buildingW*this.buildingD).toFixed(0)} m²</div>${res?`<div style="color:#ff4444;">Lateral force: ${qi} kN</div>`:''}`;}}
+  addRaycaster(){this.raycaster=new THREE.Raycaster();this.mouse=new THREE.Vector2();this.renderer.domElement.addEventListener('click',e=>{const rect=this.renderer.domElement.getBoundingClientRect();this.mouse.x=((e.clientX-rect.left)/rect.width)*2-1;this.mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;this.raycaster.setFromCamera(this.mouse,this.camera);const hits=this.raycaster.intersectObjects(this.buildingGrp.children,true);if(hits.length){let grp=hits[0].object;while(grp.parent&&grp.parent!==this.buildingGrp)grp=grp.parent;if(grp.userData&&(grp.userData.type==='floor'||grp.userData.type==='basement'))this.selectFloor(grp.userData.floorNum!==undefined?grp.userData.floorNum:grp.userData.level);}});}
+  updateFloorList(){const list=document.getElementById('floor-btn-list');list.innerHTML='';document.getElementById('mi-floors').textContent=`${this.nFloors} Floors`;document.getElementById('mi-base').textContent=`${this.nBasement} Basements`;const rb=this.makeFloorBtn('🔲 Roof & Penthouse',this.nFloors+1,'#cc44ff');list.appendChild(rb);for(let f=this.nFloors;f>=0;f--){list.appendChild(this.makeFloorBtn(f===0?'🏛 Ground Floor (G)':`🏢 Floor ${f}`,f,S.res?ZC[S.res.zone].text:'#00aaff'));}for(let b=1;b<=this.nBasement;b++){list.appendChild(this.makeFloorBtn(`🚗 B${b} Underground Parking`,-b,'#ff8800'));}list.appendChild(this.makeFloorBtn('🏗 Foundation Piles',-99,'#8855aa'));}
+  makeFloorBtn(label,floor,col){const btn=document.createElement('div');btn.className='floor-btn';btn.dataset.floor=floor;const dot=document.createElement('div');dot.className='fd';dot.style.background=col;btn.appendChild(dot);btn.appendChild(document.createTextNode(label));btn.onclick=()=>{if(floor===-99){this.controls.target.set(0,-this.nBasement*this.buildingBH-3,0);this.camera.position.set(15,-this.nBasement*this.buildingBH,20);}else this.zoomToFloor(floor);};return btn;}
+}
+
+let view3D;
+window.addEventListener('load',()=>{try{view3D=new Building3D();}catch(e){console.error('3D init:',e);}});
+
+function trigger3DEQ(){if(!view3D)return;const intensity=S.res?S.res.Z*18:6;view3D.simulateEarthquake(intensity,4000);vaSpeak('Simulating earthquake! Watch how each floor displaces differently. Higher floors experience greater lateral movement due to the mode shape.');}
+
+// ============================================================
+// VOICE ASSISTANT — SEISMA
+// ============================================================
+const VA={open:false,listening:false,recognition:null,synth:window.speechSynthesis,femaleVoice:null,
+  init(){const lv=()=>{const vs=this.synth.getVoices();const pref=['Samantha','Victoria','Karen','Moira','Zira','Susan','Heera','Neerja','Veena','Google UK English Female','Microsoft Zira'];for(const n of pref){const v=vs.find(v=>v.name.includes(n));if(v){this.femaleVoice=v;break;}}if(!this.femaleVoice)this.femaleVoice=vs.find(v=>v.lang.startsWith('en'))||vs[0];};if(this.synth.getVoices().length)lv();else this.synth.addEventListener('voiceschanged',lv);if('SpeechRecognition' in window||'webkitSpeechRecognition' in window){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;this.recognition=new SR();this.recognition.lang='en-IN';this.recognition.continuous=false;this.recognition.interimResults=false;this.recognition.onresult=e=>{const t=e.results[0][0].transcript;this.addMsg(t,'user');this.processCmd(t);this.stopListening();};this.recognition.onerror=()=>this.stopListening();this.recognition.onend=()=>this.stopListening();}},
+  speak(text){if(!this.synth)return;this.synth.cancel();const u=new SpeechSynthesisUtterance(text);if(this.femaleVoice)u.voice=this.femaleVoice;u.pitch=1.12;u.rate=.95;u.volume=1;const head=document.getElementById('va-head'),waves=document.getElementById('va-waves');u.onstart=()=>{head.classList.add('va-talking');waves.style.display='flex';};u.onend=()=>{head.classList.remove('va-talking');waves.style.display='none';};this.synth.speak(u);},
+  addMsg(text,type){const msgs=document.getElementById('va-msgs');const m=document.createElement('div');m.className=`msg msg-${type}`;m.innerHTML=text;msgs.appendChild(m);msgs.scrollTop=msgs.scrollHeight;},
+  processCmd(cmd){const c=cmd.toLowerCase();let r='';const res=S.res;
+    if(c.includes('hello')||c.includes('hi'))r="Hello! I'm Seisma, your AI earthquake engineering assistant. I can analyze buildings, explain IS 1893, read your results, and much more. What would you like to know?";
+    else if(c.includes('base shear')||c.includes('shear'))r=res?`The base shear Vb equals ${res.Vb.toFixed(1)} kilonewtons. This is Ah times W, where Ah is ${res.Ah.toFixed(4)} and seismic weight W is ${(res.W/1000).toFixed(2)} megaNewtons. Distributed across ${S.n} storeys per IS 1893 Clause 7.7.1.`:"Please run seismic analysis first.";
+    else if(c.includes('time period')||c.includes('period'))r=res?`Fundamental time period T is ${res.T.toFixed(3)} seconds using IS 1893 empirical formula. This places the structure in the ${res.T<SOILD[S.soil].TP?'constant acceleration plateau':'velocity-controlled region'} of the design spectrum.`:"Run analysis first.";
+    else if(c.includes('gps')||c.includes('location')||c.includes('detect'))r="Click the GPS auto-detect button to automatically find your seismic zone! It uses your device's location and reverse geocoding to map you to the nearest IS 1893 seismic zone.";
+    else if(c.includes('zone'))r=res?`${res.city.city} is in Seismic Zone ${res.zone} with Z equals ${res.Z}. Risk level: ${ZC[res.zone].risk}.`:"Select a city or use GPS to detect your zone.";
+    else if(c.includes('underground')||c.includes('parking')||c.includes('basement'))r=`The building has ${S.nb} underground basement levels for parking. Underground structures experience lower seismic forces due to soil confinement. Retaining walls must be designed for both soil pressure and seismic forces.`;
+    else if(c.includes('earthquake')||c.includes('simulate'))r="Triggering earthquake simulation! Watch the 3D building — floors deform based on mode shape!";
+    else if(c.includes('read')||c.includes('results'))r=res?`Analysis for ${res.city.city}: Zone ${res.zone}, Z=${res.Z}. Time period ${res.T.toFixed(3)} seconds. Base shear ${res.Vb.toFixed(0)} kilonewtons. Design acceleration ${res.Ah.toFixed(4)} g. Risk: ${ZC[res.zone].risk}.`:"Run analysis first.";
+    else if(c.includes('is 1893'))r="IS 1893 colon 2016 classifies India into 4 seismic zones, defines zone factors, response spectra, and design procedures. Equivalent static method for buildings under 40 meters, dynamic analysis beyond that.";
+    else if(c.includes('rebar')||c.includes('reinforcement'))r=res?`For Zone ${res.zone}: minimum steel ${res.zone==='V'||res.zone==='IV'?'0.25%':'0.24%'}, stirrups at ${res.zone==='V'?75:res.zone==='IV'?100:125} millimeters. ${res.zone==='V'||res.zone==='IV'?'135 degree hooks are MANDATORY per IS 13920!':''}`:"Run analysis for zone-specific requirements.";
+    else r="I can help with base shear, time period, seismic zones, rebar design, GPS detection, underground parking design, earthquake simulation, and IS 1893 compliance. Just ask!";
+    if(c.includes('earthquake')||c.includes('simulate')){trigger3DEQ();simulate2D();}
+    if(c.includes('underground')||c.includes('parking'))view3D&&view3D.zoomToFloor(-1);
+    setTimeout(()=>{this.addMsg(r,'ai');this.speak(r);},300);},
+  startListening(){if(!this.recognition)return;this.listening=true;document.getElementById('va-mic-btn').classList.add('listening');this.recognition.start();},
+  stopListening(){this.listening=false;document.getElementById('va-mic-btn').classList.remove('listening');}
+};
+VA.init();
+
+function toggleVA(){VA.open=!VA.open;const panel=document.getElementById('va-panel');if(VA.open){panel.classList.add('open');if(!document.getElementById('va-msgs').children.length){const g="Hello! I'm Seisma, your AI earthquake engineering assistant. I can explain IS 1893 design, read analysis results, control the 3D model, and answer questions. Try the GPS auto-detect button — I'll tell you your seismic zone automatically!";VA.addMsg(g,'ai');VA.speak(g);}}else{panel.classList.remove('open');VA.synth.cancel();}}
+function vaToggleMic(){if(VA.listening)VA.stopListening();else VA.startListening();}
+function vaSend(){const inp=document.getElementById('va-inp');const text=inp.value.trim();if(!text)return;VA.addMsg(text,'user');VA.processCmd(text);inp.value='';}
+function vaCmd(cmd){if(!VA.open)toggleVA();VA.addMsg(cmd,'user');VA.processCmd(cmd);}
+function vaSpeak(text){VA.addMsg(text,'ai');VA.speak(text);}
+
+// ============================================================
+// 2D CANVAS HELPERS
+// ============================================================
+let waveData=[];
+function draw2DBuilding(sx=0,rot=0){const c=document.getElementById('building-canvas'),ctx=c.getContext('2d');const W=c.offsetWidth||640,H=c.offsetHeight||370;c.width=W;c.height=H;ctx.clearRect(0,0,W,H);const gg=ctx.createLinearGradient(0,H-70,0,H);gg.addColorStop(0,'rgba(0,170,255,.08)');gg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=gg;ctx.fillRect(0,H-70,W,70);ctx.strokeStyle='rgba(0,170,255,.2)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H-55);ctx.lineTo(W,H-55);ctx.stroke();const n=S.n,bW=Math.min(100,Math.max(50,180-n*3)),bH=Math.min(290,n*Math.min(24,270/n));const cx=W/2+sx,baseY=H-55,fH=bH/n,dx=18,dy=-11;ctx.save();ctx.translate(cx,baseY);ctx.rotate(rot*Math.PI/180);ctx.fillStyle='rgba(20,50,130,.5)';ctx.beginPath();ctx.moveTo(bW/2,0);ctx.lineTo(bW/2+dx,dy);ctx.lineTo(bW/2+dx,-bH+dy);ctx.lineTo(bW/2,-bH);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(50,100,200,.35)';ctx.beginPath();ctx.moveTo(-bW/2,-bH);ctx.lineTo(bW/2,-bH);ctx.lineTo(bW/2+dx,-bH+dy);ctx.lineTo(-bW/2+dx,-bH+dy);ctx.closePath();ctx.fill();for(let f=0;f<n;f++){const fy=-f*fH,fr=f/n;let r,g,b;if(S.simming2d){const d=Math.abs(sx)/18;r=~~(25+210*d);g=~~(95-75*d);b=~~(200-160*d);}else{r=25;g=75+fr*80;b=195-fr*60;}const fg=ctx.createLinearGradient(-bW/2,fy-fH,bW/2,fy);fg.addColorStop(0,`rgba(${r},${g},${b},.88)`);fg.addColorStop(1,`rgba(${r+18},${g+18},${b+18},.7)`);ctx.fillStyle=fg;ctx.fillRect(-bW/2,fy-fH,bW,fH);ctx.strokeStyle='rgba(0,170,255,.3)';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(-bW/2,fy);ctx.lineTo(bW/2,fy);ctx.stroke();const wC=Math.max(1,~~(bW/22));for(let w=0;w<wC;w++){const wx=-bW/2+10+w*(bW/wC);ctx.fillStyle='rgba(135,205,250,.52)';ctx.fillRect(wx,fy-fH*.8,9,fH*.5);}if(n<=18||f%Math.ceil(n/10)===0){ctx.fillStyle='rgba(255,255,255,.24)';ctx.font='8px Segoe UI';ctx.textAlign='left';ctx.fillText(`${f+1}`,bW/2+3,fy-fH/2+3);}}for(let b=1;b<=S.nb;b++){const by=b*fH*.8;ctx.fillStyle='rgba(255,136,0,.25)';ctx.fillRect(-bW/2,.3+by,bW,fH*.8);ctx.strokeStyle='rgba(255,136,0,.4)';ctx.lineWidth=1;ctx.strokeRect(-bW/2,.3+by,bW,fH*.8);ctx.fillStyle='rgba(255,136,0,.7)';ctx.font='bold 9px Segoe UI';ctx.textAlign='center';ctx.fillText(`B${b} 🚗`,0,.3+by+fH*.44);}ctx.strokeStyle=S.simming2d?`rgba(255,68,68,${.65+Math.sin(Date.now()/80)*.35})`:'rgba(0,170,255,.52)';ctx.lineWidth=1.5;ctx.strokeRect(-bW/2,-bH,bW,bH);ctx.restore();if(S.res){const aL=Math.min(80,S.res.Ah*480),aY=baseY-bH/2;ctx.strokeStyle='#ff4444';ctx.fillStyle='#ff4444';ctx.lineWidth=2.5;ctx.shadowColor='#ff4444';ctx.shadowBlur=10;ctx.beginPath();ctx.moveTo(W/2-bW/2-aL,aY);ctx.lineTo(W/2-bW/2-3,aY);ctx.stroke();ctx.beginPath();ctx.moveTo(W/2-bW/2-4,aY-7);ctx.lineTo(W/2-bW/2+2,aY);ctx.lineTo(W/2-bW/2-4,aY+7);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.font='bold 10px Segoe UI';ctx.textAlign='right';ctx.fillText(`Ah=${S.res.Ah.toFixed(3)}g`,W/2-bW/2-aL-5,aY+4);}}
+function drawWaveform(){const c=document.getElementById('wf-canvas');if(!c)return;const ctx=c.getContext('2d'),W=c.offsetWidth||640,H=78;c.width=W;c.height=H;ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(0,0,W,H);for(let y=0;y<H;y+=20){ctx.strokeStyle='rgba(0,170,255,.05)';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}const mid=H/2;ctx.strokeStyle='rgba(0,170,255,.16)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,mid);ctx.lineTo(W,mid);ctx.stroke();if(waveData.length<2){ctx.fillStyle='rgba(148,163,184,.3)';ctx.font='11px Segoe UI';ctx.textAlign='center';ctx.fillText('Seismic waveform — run simulation',W/2,mid+4);return;}const mA=Math.max(...waveData.map(Math.abs),.001),sy=(H/2-7)/mA;ctx.beginPath();waveData.forEach((v,i)=>{const x=i/waveData.length*W,y=mid-v*sy;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});const wg=ctx.createLinearGradient(0,0,W,0);wg.addColorStop(0,'rgba(0,170,255,.3)');wg.addColorStop(.35,'#ff4444');wg.addColorStop(.65,'#ff8800');wg.addColorStop(1,'rgba(0,170,255,.3)');ctx.strokeStyle=wg;ctx.lineWidth=1.5;ctx.stroke();ctx.lineTo(W,mid);ctx.lineTo(0,mid);ctx.closePath();ctx.fillStyle='rgba(255,68,68,.07)';ctx.fill();}
+function drawRichter(mag){const c=document.getElementById('richter-canvas'),ctx=c.getContext('2d'),W=120,H=80;c.width=W;c.height=H;ctx.clearRect(0,0,W,H);const cx=W/2,cy=H-8,r=H-14;ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,0);ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=8;ctx.stroke();const g=ctx.createLinearGradient(cx-r,cy,cx+r,cy);g.addColorStop(0,'#00ff88');g.addColorStop(.5,'#ffcc00');g.addColorStop(1,'#ff4444');ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,0);ctx.strokeStyle=g;ctx.lineWidth=7;ctx.stroke();const ang=Math.PI*(1-(mag||0)/10);ctx.save();ctx.translate(cx,cy);ctx.rotate(ang-Math.PI);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.shadowColor='#fff';ctx.shadowBlur=6;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-r+8);ctx.stroke();ctx.shadowBlur=0;ctx.restore();ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.font='bold 12px Segoe UI';ctx.textAlign='center';ctx.fillText(mag?`M${mag.toFixed(1)}`:'—',cx,cy-r-2);}
+function drawSpectrum(Ts,zone,soil){const c=document.getElementById('spec-canvas'),ctx=c.getContext('2d'),W=c.offsetWidth||640,H=140;c.width=W;c.height=H;ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(0,0,W,H);const pL=50,pR=20,pT=18,pB=30,cW=W-pL-pR,cH=H-pT-pB;const TP=SOILD[soil||'II'].TP,mT=4,mSa=3;ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=.5;for(let i=0;i<=4;i++){const y=pT+(i/4)*cH;ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(W-pR,y);ctx.stroke();ctx.fillStyle='rgba(148,163,184,.4)';ctx.font='9px Segoe UI';ctx.textAlign='right';ctx.fillText(((1-i/4)*mSa).toFixed(1),pL-4,y+3);}for(let i=0;i<=4;i++){const x=pL+(i/4)*cW;ctx.beginPath();ctx.moveTo(x,pT);ctx.lineTo(x,H-pB);ctx.stroke();ctx.fillStyle='rgba(148,163,184,.4)';ctx.font='9px Segoe UI';ctx.textAlign='center';ctx.fillText((i/4*mT).toFixed(1),x,H-pB+12);}function gSa(t){if(t<.1)return 1+15*t;if(t<=TP)return 2.5;if(t<=4){const A={'.4':1,'.55':1.36,'.67':1.67};return(A[TP.toString()]||1)/t;}return .25/t;}ctx.beginPath();for(let i=0;i<=200;i++){const t=i/200*mT,sa=gSa(t),x=pL+(t/mT)*cW,y=pT+((mSa-Math.min(sa,mSa))/mSa)*cH;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}const zc=ZC[zone]||ZC['II'],sg=ctx.createLinearGradient(pL,0,W-pR,0);sg.addColorStop(0,'rgba(0,170,255,.45)');sg.addColorStop(.3,zc.text);sg.addColorStop(1,'rgba(0,170,255,.25)');ctx.strokeStyle=sg;ctx.lineWidth=2.5;ctx.stroke();if(Ts&&Ts<=4){const sa=gSa(Ts),px=pL+(Ts/mT)*cW,py=pT+((mSa-Math.min(sa,mSa))/mSa)*cH;ctx.beginPath();ctx.arc(px,py,7,0,Math.PI*2);ctx.fillStyle='#ff4444';ctx.shadowColor='#ff4444';ctx.shadowBlur=14;ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();}const tpX=pL+(TP/mT)*cW;ctx.strokeStyle='rgba(255,204,0,.35)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(tpX,pT);ctx.lineTo(tpX,H-pB);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(255,204,0,.65)';ctx.font='9px Segoe UI';ctx.textAlign='left';ctx.fillText(`Tp=${TP}s`,tpX+2,pT+10);}
+function drawSoil(){const c=document.getElementById('soil-canvas'),ctx=c.getContext('2d');const W=c.offsetWidth||340,H=175;c.width=W;c.height=H;ctx.clearRect(0,0,W,H);const lays={I:[{h:.32,col:'#7a6545',lbl:'Topsoil (N>30)'},{h:.35,col:'#5c4a30',lbl:'Dense Gravel (N>50)'},{h:.33,col:'#3d2e1e',lbl:'Bedrock (N>100)'}],II:[{h:.25,col:'#7a6545',lbl:'Topsoil'},{h:.42,col:'#8a7a5a',lbl:`Medium Sand (N=${S.spt})`},{h:.33,col:'#5c4a30',lbl:'Dense Layer (N>30)'}],III:[{h:.28,col:'#4a6030',lbl:`Soft Clay (N≤${Math.min(S.spt,5)})`},{h:.38,col:'#6a7a55',lbl:`Loose Silt (N=${S.spt})`},{h:.34,col:'#7a8a65',lbl:'Med. Soil'}]};let y=0;lays[S.soil].forEach((l,i)=>{const lh=l.h*H;for(let px=0;px<W;px+=9){for(let py=y;py<y+lh;py+=9){ctx.fillStyle=l.col;ctx.fillRect(px,py,8,8);if(i===2){ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(px,py,8,1);}}}ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,y+lh);ctx.lineTo(W,y+lh);ctx.stroke();ctx.fillStyle='rgba(255,255,255,.82)';ctx.font='bold 11px Segoe UI';ctx.textAlign='left';ctx.fillText(l.lbl,8,y+lh/2+4);y+=lh;});const fdY=S.fd/6*H;ctx.strokeStyle='#ffcc00';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(0,fdY);ctx.lineTo(W,fdY);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffcc00';ctx.font='bold 10px Segoe UI';ctx.textAlign='left';ctx.fillText(`⬇ Foundation (${S.fd}m)`,4,fdY-3);}
+function drawStoreyChart(data){const c=document.getElementById('storey-canvas'),ctx=c.getContext('2d'),W=c.offsetWidth||1200,H=155;c.width=W;c.height=H;ctx.fillStyle='rgba(0,0,0,.2)';ctx.fillRect(0,0,W,H);if(!data||!data.length){ctx.fillStyle='rgba(148,163,184,.28)';ctx.font='13px Segoe UI';ctx.textAlign='center';ctx.fillText('Run analysis to see storey force distribution',W/2,H/2);return;}const mQ=Math.max(...data.map(d=>d.Qi),.01),n=data.length,pL=52,pR=20,pT=18,pB=32,cW=W-pL-pR,cH=H-pT-pB;for(let i=0;i<=5;i++){const y=pT+(i/5)*cH;ctx.strokeStyle='rgba(255,255,255,.04)';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(pL,y);ctx.lineTo(W-pR,y);ctx.stroke();ctx.fillStyle='rgba(148,163,184,.4)';ctx.font='9px Segoe UI';ctx.textAlign='right';ctx.fillText(((1-i/5)*mQ).toFixed(1),pL-4,y+3);}const bW=Math.min(36,cW/n-5);data.forEach((s,i)=>{const x=pL+(i/n)*cW+(cW/n-bW)/2,bH=(s.Qi/mQ)*cH,y=pT+cH-bH,bg=ctx.createLinearGradient(x,y,x,y+bH);bg.addColorStop(0,'#cc44ff');bg.addColorStop(1,'rgba(204,68,255,.25)');ctx.fillStyle=bg;ctx.fillRect(x,y,bW,bH);ctx.strokeStyle='rgba(204,68,255,.5)';ctx.lineWidth=1;ctx.strokeRect(x,y,bW,bH);if(bH>13){ctx.fillStyle='#fff';ctx.font='bold 8px Segoe UI';ctx.textAlign='center';ctx.fillText(s.Qi.toFixed(1),x+bW/2,y+9);}if(n<=18||i%Math.ceil(n/12)===0){ctx.fillStyle='rgba(148,163,184,.55)';ctx.font='9px Segoe UI';ctx.textAlign='center';ctx.fillText(`F${s.floor}`,x+bW/2,H-pB+12);}});}
+function drawZone(zone){const c=document.getElementById('zone-canvas'),ctx=c.getContext('2d');const W=c.offsetWidth||320,H=c.offsetHeight||175;c.width=W;c.height=H;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);const cx=W/2,cy=H/2,zs=['V','IV','III','II'],cls=['rgba(255,68,68,.46)','rgba(255,136,0,.36)','rgba(255,204,0,.26)','rgba(0,255,136,.18)'],lbs=['Zone V','Zone IV','Zone III','Zone II'];zs.forEach((z,i)=>{const r=H/2-i*(H/(2*zs.length+1)),isA=z===zone,zc=ZC[z];ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=isA?zc.fill.replace('.7','.24').replace('.8','.24'):cls[i];if(isA){ctx.shadowColor=zc.text;ctx.shadowBlur=20;}ctx.fill();ctx.shadowBlur=0;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.strokeStyle=isA?zc.text:'rgba(255,255,255,.07)';ctx.lineWidth=isA?2.5:.5;ctx.stroke();ctx.fillStyle=isA?zc.text:'rgba(148,163,184,.3)';ctx.font=`${isA?'bold ':''} ${isA?12:10}px Segoe UI`;ctx.textAlign='right';ctx.fillText(lbs[i],cx+r-6,cy+4);});if(zone){const zc=ZC[zone];ctx.beginPath();ctx.arc(cx,cy,6,0,Math.PI*2);ctx.fillStyle=zc.text;ctx.shadowColor=zc.text;ctx.shadowBlur=15;ctx.fill();ctx.shadowBlur=0;}}
+let zAId=null;function animateZone(zone){cancelAnimationFrame(zAId);function l(){drawZone(zone);zAId=requestAnimationFrame(l);}l();}
+function drawRebar(){const c=document.getElementById('rebar-canvas'),ctx=c.getContext('2d'),W=c.offsetWidth||400,H=155;c.width=W;c.height=H;ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,W,H);if(S.rbMode==='beam')dBeam(ctx,W,H);else if(S.rbMode==='column')dCol(ctx,W,H);else dSlab(ctx,W,H);}
+function br(ctx,x,y,r,col){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=6;ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=.6;ctx.stroke();}
+function dBeam(ctx,W,H){const bw=180,bh=80,bx=(W-bw)/2,by=(H-bh)/2,cv=25;ctx.fillStyle='rgba(175,155,135,.35)';ctx.fillRect(bx,by,bw,bh);ctx.strokeStyle='rgba(200,180,160,.52)';ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);ctx.strokeStyle='rgba(255,204,0,.22)';ctx.lineWidth=.6;ctx.setLineDash([3,3]);ctx.strokeRect(bx+cv/2,by+cv/2,bw-cv,bh-cv);ctx.setLineDash([]);[bx+cv,bx+bw/2,bx+bw-cv].forEach(x=>br(ctx,x,by+17,8,'#00aaff'));[bx+cv,bx+bw*.35,bx+bw*.65,bx+bw-cv].forEach(x=>br(ctx,x,by+bh-17,10,'#ff4444'));for(let sy=by+17;sy<by+bh-7;sy+=16){ctx.strokeStyle='#00ff88';ctx.lineWidth=1.2;ctx.strokeRect(bx+11,sy,bw-22,8);}ctx.fillStyle='rgba(148,163,184,.62)';ctx.font='10px Segoe UI';ctx.textAlign='center';ctx.fillText('BEAM (IS 13920 Cl. 6)',W/2,by-8);}
+function dCol(ctx,W,H){const s=100,cx=W/2,cy=H/2,cv=25;ctx.fillStyle='rgba(150,135,118,.35)';ctx.fillRect(cx-s/2,cy-s/2,s,s);ctx.strokeStyle='rgba(200,180,160,.52)';ctx.lineWidth=2;ctx.strokeRect(cx-s/2,cy-s/2,s,s);[[cx-s/2+16,cy-s/2+16],[cx+s/2-16,cy-s/2+16],[cx-s/2+16,cy+s/2-16],[cx+s/2-16,cy+s/2-16],[cx,cy-s/2+16],[cx,cy+s/2-16],[cx-s/2+16,cy],[cx+s/2-16,cy]].forEach(([x,y])=>br(ctx,x,y,9,'#ff8800'));ctx.strokeStyle='#cc44ff';ctx.lineWidth=1.8;ctx.strokeRect(cx-s/2+13,cy-s/2+13,s-26,s-26);ctx.fillStyle='rgba(148,163,184,.62)';ctx.font='10px Segoe UI';ctx.textAlign='center';ctx.fillText('COLUMN (IS 13920 Cl. 7)',W/2,cy-s/2-8);}
+function dSlab(ctx,W,H){const sw=W-55,sh=48,sx=27,sy=(H-sh)/2;ctx.fillStyle='rgba(150,140,130,.35)';ctx.fillRect(sx,sy,sw,sh);ctx.strokeStyle='rgba(200,180,160,.52)';ctx.lineWidth=2;ctx.strokeRect(sx,sy,sw,sh);const sp=145;for(let x=sx+48;x<sx+sw-18;x+=sp){br(ctx,x,sy+sh-12,8,'#00aaff');}for(let x=sx+95;x<sx+sw-18;x+=195)br(ctx,x,sy+12,6,'#00ff88');ctx.fillStyle='rgba(148,163,184,.62)';ctx.font='10px Segoe UI';ctx.textAlign='center';ctx.fillText('SLAB (IS 456 Cl. 26)',W/2,sy-8);}
+
+// ============================================================
+// IS 1893 ANALYSIS ENGINE
+// ============================================================
+function analyze(){
+  if(!S.city){document.getElementById('zone-info').innerHTML='<span style="color:#ff8888;">⚠ Select a city or use GPS detection</span>';return;}
+  const btn=document.getElementById('analyze-btn');btn.disabled=true;btn.innerHTML='<span class="ldots"><span></span><span></span><span></span></span> Analyzing...';
+  setTimeout(()=>{
+    const sd=CITIES[S.city],n=S.n,h=n*S.sh,struct=SR[S.struct],soil=SOILD[S.soil],Z=sd.Z,I=S.I,R=struct.R;
+    let T;if(S.struct==='RC_SMRF'||S.struct==='RC_OMRF')T=.075*Math.pow(h,.75);else if(S.struct==='WALL')T=.09*h/Math.sqrt(S.bay);else if(S.struct==='STEEL')T=.085*Math.pow(h,.75);else T=.075*Math.pow(h,.75);
+    const dF=S.damp===5?1:S.damp===2?1.4:.8,TP=soil.TP;let Sa;
+    if(T<.1)Sa=1+15*T;else if(T<=TP)Sa=2.5*dF;else if(T<=4){const A={'.4':1,'.55':1.36,'.67':1.67};Sa=(A[TP.toString()]||1)/T;}else Sa=.25/(T*T);
+    Sa=Math.min(Sa,2.5*dF);
+    const Ah=(Z/2)*(I/R)*Sa,fa=S.bay*S.bay,Wi=fa*5+fa*3.75,Wt=Wi*n,Vb=Ah*Wt;
+    let sum=0;const sData=[];for(let i=1;i<=n;i++){const hi=i*S.sh,w2=Wi*hi*hi;sum+=w2;sData.push({floor:i,hi,Wi,Wihi2:w2,Qi:0});}
+    sData.forEach(s=>s.Qi=Vb*s.Wihi2/sum);
+    S.res={Z,I,R,T,Sa,Ah,W:Wt,Vb,zone:sd.zone,city:sd,storeyData:sData};
+    showResults(S.res);showIS1893(S.res);updateRebar();showAI(S.res);
+    drawStoreyChart(sData);document.getElementById('stbl-wrap').style.display='block';fillTable(sData);
+    drawSpectrum(T,sd.zone,S.soil);draw2DBuilding();drawRichter(5+Z*8.3);
+    document.getElementById('mag-d').textContent=`M${(5+Z*8.3).toFixed(1)}`;
+    document.getElementById('pga-d').textContent=`${(Z/2*I).toFixed(3)} g`;
+    document.getElementById('period-d').textContent=`${T.toFixed(3)} s`;
+    document.getElementById('ah-disp').textContent=Ah.toFixed(4);
+    document.getElementById('live-vb').textContent=Vb.toFixed(0)+' kN';
+    document.getElementById('live-t').textContent=T.toFixed(3)+' s';
+    document.getElementById('live-ah').textContent=Ah.toFixed(4);
+    document.getElementById('live-zone').textContent='Zone '+sd.zone;
+    if(view3D){view3D.build(S.n,S.nb);if(view3D.stressMode)view3D.toggleStressMode();}
+    btn.disabled=false;btn.innerHTML='✅ Complete — Re-analyze';btn.style.background='linear-gradient(135deg,#004400,#00aa44)';
+    setTimeout(()=>{btn.innerHTML='⚡ Analyze Seismic Design';btn.style.background='';},3000);
+    if(VA.open){const m=`Analysis complete! ${sd.city}, ${sd.state} — Zone ${sd.zone}, Z=${Z}. Base shear ${Vb.toFixed(0)} kilonewtons. Time period ${T.toFixed(3)} seconds. Risk: ${ZC[sd.zone].risk}!`;VA.addMsg(m,'ai');VA.speak(m);}
+  },750);
+}
+
+function showResults(r){document.getElementById('r-zone').textContent=`Zone ${r.zone}`;document.getElementById('r-z').textContent=r.Z.toFixed(2);document.getElementById('r-w').textContent=(r.W/1000).toFixed(2)+' ×10³';document.getElementById('r-vb').textContent=r.Vb.toFixed(1);document.getElementById('r-t').textContent=r.T.toFixed(3);document.getElementById('r-sa').textContent=r.Sa.toFixed(3);document.getElementById('r-ah').textContent=r.Ah.toFixed(4);document.getElementById('r-rf').textContent=r.R;document.getElementById('risk-wrap').style.display='block';const zc=ZC[r.zone],f=document.getElementById('risk-fill');f.style.width=zc.rp+'%';f.style.background=zc.grd;const l=document.getElementById('risk-label');l.style.color=zc.text;l.textContent=`⚠ Risk: ${zc.risk} — ${r.city.city}, ${r.city.state} (Zone ${r.zone})`;}
+function showIS1893(r){const zone=r.zone,n=S.n,h=n*S.sh,soil=S.soil,struct=S.struct;document.getElementById('sdc-wrap').style.display='block';const sdc={V:'SDC-E',IV:'SDC-D',III:'SDC-C',II:'SDC-B'}[zone],sc={'E':'#ff4444','D':'#ff8800','C':'#ffcc00','B':'#00ff88'}[sdc.slice(-1)];const sb=document.getElementById('sdc-badge');sb.textContent=sdc;sb.style.color=sc;sb.style.background='rgba(0,0,0,.2)';sb.style.border=`1px solid ${sc}88`;const checks=[{ok:struct==='RC_SMRF'||struct==='DUAL'||struct==='WALL',w:struct==='RC_OMRF'&&(zone==='IV'||zone==='V'),l:`Cl. 7.2.1 – Structural System (R=${SR[struct].R})`,d:struct==='RC_SMRF'?'RC SMRF — fully ductile, permitted all zones. ✓':struct==='RC_OMRF'&&(zone==='IV'||zone==='V')?'OMRF NOT recommended Zones IV–V. Use SMRF.':'System suitable for zone.'},{ok:h<=40||(zone==='II'||zone==='III'),w:h>40&&(zone==='IV'||zone==='V'),l:`Cl. 7.3 – Height (h=${h.toFixed(0)}m)`,d:h>45&&(zone==='IV'||zone==='V')?`Dynamic analysis mandatory.`:'Within ESM limits.'},{ok:soil!=='III'||zone==='II',w:soil==='III'&&(zone==='IV'||zone==='V'),l:'Cl. 6.5 – Soil–Foundation',d:soil==='III'&&(zone==='IV'||zone==='V')?'Soft soil + high zone: Liquefaction assessment mandatory!':`Soil Type ${soil} — spectrum applied.`},{ok:r.Ah<=.5,w:r.Ah>.3,l:`Cl. 6.4.2 – Ah = ${r.Ah.toFixed(4)}`,d:`${r.Ah>.3?'High seismic demand.':'Normal range.'}`},{ok:r.T>=.1&&r.T<=4,w:false,l:`Cl. 7.6 – T = ${r.T.toFixed(3)}s`,d:`Sa/g=${r.Sa.toFixed(3)}.`},{ok:r.Vb>0,w:false,l:`Cl. 7.6.1 – Vb = ${r.Vb.toFixed(1)} kN`,d:`Distributed across ${n} storeys.`},{ok:S.fd>=1.0,w:S.fd<1.5&&soil==='III',l:`Cl. 6.3 – Foundation (${S.fd}m)`,d:S.fd<1.5&&soil==='III'?'Increase depth or use piles.':`Adequate for Soil ${soil}.`},{ok:struct!=='RC_OMRF'||zone==='II',w:struct==='RC_OMRF'&&zone==='III',l:'IS 13920 – Ductile Detailing',d:zone==='II'?'IS 13920 recommended.':'Mandatory Zones III–V. 135° hooks.'}];const ul=document.getElementById('comp-list');ul.innerHTML='';checks.forEach(c=>{const li=document.createElement('li');li.className='comp-item';const cls=c.w?'ck-w':c.ok?'ck-ok':'ck-x',ic=c.w?'!':c.ok?'✓':'✗';li.innerHTML=`<div class="ck ${cls}">${ic}</div><div><div style="font-weight:600;color:rgba(226,232,240,.88);margin-bottom:2px;">${c.l}</div><div style="color:rgba(148,163,184,.65);">${c.d}</div></div>`;ul.appendChild(li);});}
+function updateRebar(){if(!S.res)return;const zone=S.res.zone,mode=S.rbMode;let mn,mx,st,cv;if(mode==='beam'){mn=zone==='II'?.24:.25;mx=zone==='V'||zone==='IV'?2.5:3;st=zone==='V'?75:zone==='IV'?100:125;cv=25;}else if(mode==='column'){mn=zone==='II'?.8:1;mx=zone==='V'||zone==='IV'?3:4;st=zone==='V'?100:zone==='IV'?125:150;cv=40;}else{mn=.12;mx=zone==='V'||zone==='IV'?1:1.5;st=zone==='V'?200:300;cv=20;}document.getElementById('rb-min').textContent=mn.toFixed(2)+'%';document.getElementById('rb-max').textContent=mx.toFixed(2)+'%';document.getElementById('rb-stir').textContent=st+'mm';document.getElementById('rb-cov').textContent=cv+'mm';const hw=zone==='V'||zone==='IV',ib=document.getElementById('rebar-info');ib.className='info-box'+(hw?' warn-box':'');ib.innerHTML=mode==='beam'?`<b>Beam IS 13920 Cl. 6:</b> Min ${mn}%–Max ${mx}%. Stirrups @${st}mm. ${hw?'<b>135° hooks mandatory.</b>':''}`:mode==='column'?`<b>Column IS 13920 Cl. 7:</b> ${mn}%–${mx}%. Hoops @${st}mm. ${hw?'Special confinement required.':''}`:`<b>Slab IS 456 Cl. 26:</b> Min ${mn}% @${st}mm. ${hw?'Continuity per IS 13920.':''}`;drawRebar();}
+function showAI(r){const zone=r.zone,zc=ZC[zone],soil=S.soil,n=S.n,h=n*S.sh;const ins=[{i:'🔬',c:'#00aaff',t:'Seismic Demand',b:`Ah = <b>${r.Ah.toFixed(4)}g</b>. T=${r.T.toFixed(3)}s → <b>${r.T<SOILD[soil].TP?'constant plateau':'descending branch'}</b>. Vb = <b>${r.Vb.toFixed(1)} kN</b>.`},{i:'🏗️',c:'#00ff88',t:'Structural System',b:zone==='V'||zone==='IV'?`Zone ${zone}: <b>RC SMRF + IS 13920</b> mandatory.`:`Zone ${zone}: IS 13920 detailing strongly recommended.`},{i:'🚗',c:'#ff8800',t:`Underground Parking (${S.nb} levels)`,b:`${S.nb} basement levels for parking. Underground RC retaining walls. Underground structures experience <b>lower seismic forces</b> due to soil confinement.`},{i:'🌍',c:'#ffcc00',t:'Soil Effects',b:soil==='III'?`⚠ Soft Soil: liquefaction assessment mandatory. Site-specific spectrum required.`:soil==='II'?`Medium Soil (Tp=${SOILD[soil].TP}s): standard spectrum. Verify drift < 0.004h.`:`Rock/Hard Soil: favorable site conditions.`},{i:'⚡',c:'#ff4444',t:'Critical Actions',b:[zone==='V'||zone==='IV'?'• Mandatory IS 13920 ductile detailing':'',r.Vb>800?`• High Vb=${r.Vb.toFixed(0)} kN — foundation critical`:'',soil==='III'&&(zone==='IV'||zone==='V')?'• Liquefaction risk — geotech investigation mandatory':'',n>10?'• P-Δ effects per IS 1893 Cl. 7.11.1':'','• Drift limit: 0.004h per IS 1893 Cl. 7.11','• Underground walls: seismic earth pressure check'].filter(Boolean).join('<br>')}];document.getElementById('ai-content').innerHTML=`<div style="font-size:.68rem;color:rgba(148,163,184,.45);margin-bottom:14px;">AI insights — <b style="color:${zc.text}">${r.city.city}, ${r.city.state}</b> Zone ${zone}</div>${ins.map(i=>`<div style="border-radius:9px;padding:12px 14px;margin-bottom:9px;border-left:3px solid ${i.c};background:${i.c}08;border:1px solid ${i.c}20;border-left:3px solid ${i.c};"><div style="font-size:.78rem;font-weight:700;color:${i.c};margin-bottom:5px;">${i.i} ${i.t}</div><div style="font-size:.73rem;color:rgba(148,163,184,.86);line-height:1.7;">${i.b}</div></div>`).join('')}`;}
+function fillTable(data){const tb=document.getElementById('stbl-body');tb.innerHTML='';const mQ=Math.max(...data.map(d=>d.Qi));let cum=0;[...data].reverse().forEach(s=>{cum+=s.Qi;const tr=document.createElement('tr'),isM=Math.abs(s.Qi-mQ)<.01;if(isM)tr.style.background='rgba(204,68,255,.08)';tr.innerHTML=`<td style="padding:6px 9px;font-weight:${isM?700:400};color:${isM?'#cc44ff':'inherit'};">${isM?'★ ':''}Floor ${s.floor}</td><td>${s.hi.toFixed(1)}</td><td>${s.Wi.toFixed(1)}</td><td style="color:rgba(0,170,255,.9);">${s.Wihi2.toFixed(0)}</td><td style="color:${isM?'#cc44ff':'#00ff88'};font-weight:700;">${s.Qi.toFixed(2)}</td><td style="color:rgba(255,136,0,.85);">${cum.toFixed(2)}</td>`;tb.appendChild(tr);});}
+function simulate2D(){if(S.simming2d)return;if(!S.res){alert('Run analysis first!');return;}S.simming2d=true;document.getElementById('sim-loader').style.display='flex';const Z=S.res.Z,int=Z*28,dur=3500,start=Date.now();waveData=[];const pts=220;for(let i=0;i<pts;i++){const t=i/pts,env=Math.exp(-t*3)*(t<.12?t/.12:1);waveData.push((Math.sin(t*55+Math.random()*2)*Z+Math.sin(t*32)*Z*.5+(Math.random()-.5)*Z*.3)*env);}drawWaveform();function shake(){const el=Date.now()-start,p=el/dur;if(p>=1){S.simming2d=false;document.getElementById('sim-loader').style.display='none';draw2DBuilding(0,0);return;}const env=Math.exp(-p*3)*(p<.15?p/.15:1);const sx=Math.sin(el/58)*int*env+Math.sin(el/33)*int*.4*env+(Math.random()-.5)*int*.18*env;draw2DBuilding(sx,sx*.038);requestAnimationFrame(shake);}requestAnimationFrame(shake);}
+
+// ============================================================
+// TABS & EVENTS
+// ============================================================
+const tabNames=['results','is1893','rebar','ai'];
+document.querySelectorAll('.tab[data-tab]').forEach(tab=>{tab.addEventListener('click',function(){const n=this.dataset.tab;document.querySelectorAll('.tab[data-tab]').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));tabNames.forEach(id=>{const el=document.getElementById('tp-'+id);if(el)el.style.display=id===n?'block':'none';});if(n==='rebar')drawRebar();});});
+tabNames.forEach(id=>{const el=document.getElementById('tp-'+id);if(el)el.style.display=id==='results'?'block':'none';});
+document.querySelectorAll('.tab[data-rb]').forEach(tab=>{tab.addEventListener('click',function(){S.rbMode=this.dataset.rb;document.querySelectorAll('.tab[data-rb]').forEach(t=>t.classList.toggle('active',t.dataset.rb===S.rbMode));updateRebar();});});
+document.getElementById('s-range').addEventListener('input',function(){S.n=+this.value;document.getElementById('sv').textContent=this.value;draw2DBuilding();if(view3D)view3D.build(S.n,S.nb);});
+document.getElementById('bs-range').addEventListener('input',function(){S.nb=+this.value;document.getElementById('bsv').textContent=this.value;if(view3D)view3D.build(S.n,S.nb);});
+document.getElementById('b-range').addEventListener('input',function(){S.bay=+this.value;document.getElementById('bv').textContent=(+this.value).toFixed(1);});
+document.getElementById('sh-range').addEventListener('input',function(){S.sh=+this.value;document.getElementById('shv').textContent=(+this.value).toFixed(1);});
+document.getElementById('spt-range').addEventListener('input',function(){S.spt=+this.value;document.getElementById('sptv').textContent=this.value;drawSoil();});
+document.getElementById('fd-range').addEventListener('input',function(){S.fd=+this.value;document.getElementById('fdv').textContent=(+this.value).toFixed(1);drawSoil();});
+document.getElementById('soil-type').addEventListener('change',function(){S.soil=this.value;drawSoil();});
+document.getElementById('struct-type').addEventListener('change',function(){S.struct=this.value;});
+document.getElementById('damp-sel').addEventListener('change',function(){S.damp=+this.value;});
+document.querySelectorAll('#imp-chips .chip').forEach(c=>{c.addEventListener('click',function(){document.querySelectorAll('#imp-chips .chip').forEach(x=>x.classList.remove('active'));this.classList.add('active');S.I=+this.dataset.v;});});
+document.getElementById('city-sel').addEventListener('change',function(){const key=this.value;S.city=key;if(!key)return;const sd=CITIES[key],zc=ZC[sd.zone];document.getElementById('zone-info').innerHTML=`<div style="display:inline-flex;align-items:center;gap:10px;padding:6px 16px;background:${zc.fill.replace('.7','.1').replace('.8','.1')};border:1px solid ${zc.fill.replace('.7','.4').replace('.8','.4')};border-radius:20px;margin:2px 0;"><div style="width:9px;height:9px;border-radius:50%;background:${zc.text};box-shadow:0 0 8px ${zc.text};"></div><span style="color:${zc.text};font-weight:700;">Zone ${sd.zone}</span><span style="color:rgba(148,163,184,.7);">Z=${sd.Z}</span><span style="color:rgba(148,163,184,.5);">${sd.city}, ${sd.state}</span></div>`;animateZone(sd.zone);drawRichter(5+sd.Z*8.3);drawSpectrum(null,sd.zone,S.soil);});
+window.addEventListener('load',()=>{setTimeout(()=>{draw2DBuilding();drawSoil();drawStoreyChart([]);drawWaveform();drawRebar();drawRichter(null);drawSpectrum(null,'III','II');
+  // Auto-select Indore (Acropolis) as default live location
+  const sel=document.getElementById('city-sel');
+  if(sel.value==='z3_ind'){sel.dispatchEvent(new Event('change'));}
+},250);});
+window.addEventListener('resize',()=>{draw2DBuilding(0,0);drawSoil();drawWaveform();drawStoreyChart(S.res?S.res.storeyData:[]);drawRebar();drawSpectrum(S.res?S.res.T:null,S.res?S.res.zone:'III',S.soil);if(view3D)view3D.resize();});
+</script>
+</body>
+</html>
